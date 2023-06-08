@@ -1,0 +1,4 @@
+<?import javafx.scene.control.*?>
+<SpinnerValueFactory.IntegerSpinnerValueFactory max="10" min="0">
+
+</SpinnerValueFactory.IntegerSpinnerValueFactory>

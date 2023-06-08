@@ -1,0 +1,16 @@
+<?import javafx.geometry.VPos?>
+<?import javafx.util.Duration?>
+<?import java.lang.Double?>
+<?import java.lang.Float?>
+<?import java.util.ArrayList?>
+<ArrayList xmlns:fx="http://javafx.com/fxml">
+    <Duration fx:value="1s"/>
+    <Double fx:value="1"/>
+    <Double fx:value="Infinity"/>
+    <Double fx:value="-Infinity"/>
+    <Double fx:value="NaN"/>
+    <Float fx:value="Infinity"/>
+    <Float fx:value="-Infinity"/>
+    <Float fx:value="NaN"/>
+    <VPos fx:value="CENTER"/>
+</ArrayList>

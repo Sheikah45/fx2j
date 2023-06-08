@@ -1,0 +1,8 @@
+<?controllerType io.github.sheikah45.fx2j.compiler.testcontroller.PublicController?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.layout.AnchorPane?>
+<AnchorPane xmlns:fx="http://javafx.com/fxml">
+    <children>
+        <Button fx:id="button"/>
+    </children>
+</AnchorPane>

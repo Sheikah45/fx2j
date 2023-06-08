@@ -1,0 +1,8 @@
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.layout.AnchorPane?>
+<AnchorPane>
+    <Button>
+        test
+        test
+    </Button>
+</AnchorPane>

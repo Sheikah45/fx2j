@@ -1,0 +1,5 @@
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.GridPane?>
+<AnchorPane GridPane.halignment="CENTER">
+    <GridPane.valignment>TOP</GridPane.valignment>
+</AnchorPane>

@@ -1,0 +1,6 @@
+<?import javafx.scene.layout.AnchorPane?>
+<AnchorPane>
+    <properties test1="t1">
+        <test2>123</test2>
+    </properties>
+</AnchorPane>

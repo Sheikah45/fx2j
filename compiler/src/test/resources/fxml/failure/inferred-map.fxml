@@ -1,0 +1,3 @@
+<?import java.util.HashMap?>
+<HashMap key1="a" xmlns:fx="http://javafx.com/fxml"
+         fx:controller="io.github.sheikah45.fx2j.compiler.testcontroller.MapController" fx:id="map"/>

@@ -1,0 +1,3 @@
+<?import javafx.scene.layout.GridPane?>
+<?import java.util.HashMap?>
+<HashMap GridPane.halignment="CENTER"/>

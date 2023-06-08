@@ -1,0 +1,2 @@
+<?import javafx.scene.control.SplitPane?>
+<SplitPane dividerPositions="1,2,3,4"/>

@@ -1,0 +1,5 @@
+<?import javafx.scene.layout.GridPane?>
+<?import java.util.ArrayList?>
+<ArrayList>
+    <GridPane.halignment>CENTER</GridPane.halignment>
+</ArrayList>

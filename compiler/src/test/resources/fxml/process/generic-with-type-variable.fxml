@@ -1,0 +1,7 @@
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<TableView>
+    <columns>
+        <TableColumn/>
+    </columns>
+</TableView>

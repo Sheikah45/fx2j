@@ -1,0 +1,9 @@
+<?import java.lang.Integer?>
+<?import java.util.HashMap?>
+<HashMap key1="1" xmlns:fx="http://javafx.com/fxml"
+         fx:controller="io.github.sheikah45.fx2j.compiler.testcontroller.MapController" fx:id="map">
+    <key2>2</key2>
+    <key3>
+        <Integer fx:value="3"/>
+    </key3>
+</HashMap>
