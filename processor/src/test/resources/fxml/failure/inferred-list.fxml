@@ -1,0 +1,8 @@
+<?import java.lang.Integer?>
+<?import java.lang.String?>
+<?import java.util.ArrayList?>
+<ArrayList xmlns:fx="http://javafx.com/fxml"
+           fx:controller="io.github.sheikah45.fx2j.processor.testcontroller.ListController" fx:id="list">
+    <Integer fx:value="1"/>
+    <String fx:value="2"/>
+</ArrayList>

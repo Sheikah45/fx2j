@@ -1,0 +1,9 @@
+<?import io.github.sheikah45.fx2j.processor.testutils.CopyObject?>
+<?import java.util.ArrayList?>
+<ArrayList xmlns:fx="http://javafx.com/fxml"
+           fx:controller="io.github.sheikah45.fx2j.processor.testcontroller.NoOpController">
+    <fx:define>
+        <CopyObject fx:id="obj"/>
+    </fx:define>
+    <fx:reference source="obj"/>
+</ArrayList>

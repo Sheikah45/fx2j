@@ -1,10 +1,10 @@
 package io.github.sheikah45.fx2j.gradle.plugin;
 
-import io.github.sheikah45.fx2j.compiler.processor.Fx2jProcessor;
-import io.github.sheikah45.fx2j.compiler.processor.FxmlProcessor;
-import io.github.sheikah45.fx2j.compiler.processor.ProcessorException;
 import io.github.sheikah45.fx2j.gradle.plugin.exception.ClassNameCollisionException;
 import io.github.sheikah45.fx2j.gradle.plugin.exception.CompilationException;
+import io.github.sheikah45.fx2j.processor.Fx2jProcessor;
+import io.github.sheikah45.fx2j.processor.FxmlProcessor;
+import io.github.sheikah45.fx2j.processor.ProcessorException;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.file.Directory;
 import org.gradle.api.file.FileCollection;

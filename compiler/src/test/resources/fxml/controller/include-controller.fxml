@@ -1,7 +1,0 @@
-<?import javafx.scene.layout.AnchorPane?>
-<AnchorPane xmlns:fx="http://javafx.com/fxml"
-            fx:controller="io.github.sheikah45.fx2j.compiler.testcontroller.IncludeController">
-    <children>
-        <fx:include source="public-controller.fxml" fx:id="pane"/>
-    </children>
-</AnchorPane>

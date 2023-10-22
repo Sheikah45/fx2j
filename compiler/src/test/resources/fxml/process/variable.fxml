@@ -1,9 +1,0 @@
-<?import javafx.scene.control.Label?>
-<?import java.lang.String?>
-<Label xmlns:fx="http://javafx.com/fxml"
-       fx:controller="io.github.sheikah45.fx2j.compiler.testcontroller.NoOpController">
-    <fx:define>
-        <String fx:id="obj" fx:value="hello"/>
-    </fx:define>
-    <text>$obj</text>
-</Label>

@@ -1,4 +1,5 @@
 rootProject.name = "fx2j"
-include("compiler")
+
+include("processor")
 include("gradle-plugin")
 include("api")
