@@ -35,10 +35,10 @@ jobs:
       run: chmod +x gradlew
 
     - name: Build
-      run: ./gradlew build --no-daemon
+      run: ./gradlew build
 
     - name: Coverage Report
-      run: ./gradlew jacocoTestReport --no-daemon
+      run: ./gradlew jacocoTestReport
 
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v3
