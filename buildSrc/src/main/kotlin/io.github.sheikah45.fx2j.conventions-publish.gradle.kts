@@ -3,11 +3,10 @@ import java.time.format.DateTimeFormatter
 
 plugins {
     `maven-publish`
-    signing
     java
-}
 
-group = "io.github.sheikah45.fx2j"
+    id("io.github.sheikah45.fx2j.conventions-repository")
+}
 
 val buildTimeAndDate: OffsetDateTime by lazy {
     OffsetDateTime.now()
@@ -19,11 +18,9 @@ val buildTime: String by lazy {
     DateTimeFormatter.ofPattern("HH:mm:ss.SSSZ").format(buildTimeAndDate)
 }
 
-tasks.jar {
-    archiveBaseName.set("${rootProject.name}-${project.name}")
+tasks.withType(Jar::class.java) {
     manifest {
         attributes(
-            "Built-By" to System.getProperty("user.name"),
             "Created-By" to "${System.getProperty("java.version")} (${System.getProperty("java.vendor")} ${
                 System.getProperty(
                     "java.vm.version"
@@ -52,7 +49,6 @@ publishing {
                 name.set(project.properties["project_display_name"].toString())
                 description.set(project.properties["project_description"].toString())
                 url.set(project.properties["project_website"].toString())
-                artifactId = "${rootProject.name}-${project.name}"
                 issueManagement {
                     system.set("GitHub")
                     url.set(project.properties["project_issues"].toString())
@@ -82,19 +78,4 @@ publishing {
             }
         }
     }
-}
-
-signing {
-    isRequired = gradle.taskGraph.allTasks.any {
-        it.name.startsWith("publish")
-    }
-    publishing.publications.configureEach {
-        sign(this)
-    }
-    sign(configurations.archives.get())
-    useGpgCmd()
-}
-
-tasks.withType<Sign>().configureEach {
-    onlyIf { signing.isRequired }
 }

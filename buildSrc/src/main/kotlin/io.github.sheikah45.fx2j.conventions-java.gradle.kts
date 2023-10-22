@@ -4,6 +4,14 @@ plugins {
     id("com.adarshr.test-logger")
 }
 
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+
+    withJavadocJar()
+    withSourcesJar()
+}
+
 repositories {
     mavenCentral()
 }
@@ -24,6 +32,10 @@ tasks.jacocoTestReport {
     reports {
         xml.required.set(true)
     }
+}
+
+tasks.withType(Javadoc::class.java) {
+    options.outputLevel = JavadocOutputLevel.QUIET
 }
 
 testlogger {

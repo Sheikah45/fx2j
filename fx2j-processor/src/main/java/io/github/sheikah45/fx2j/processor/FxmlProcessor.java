@@ -27,6 +27,10 @@ import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.function.Function;
 
+/**
+ * The FxmlProcessor class is responsible for processing an FXML file and generating Java code for it.
+ * The generated Java code implements the Fx2jBuilder interface, which is a builder for JavaFX nodes.
+ */
 public class FxmlProcessor {
 
     public static final String CONTROLLER_NAME = "controller";
@@ -44,6 +48,14 @@ public class FxmlProcessor {
     private final ObjectNodeCode objectNodeCode;
     private final Class<?> rootClass;
 
+    /**
+     * FxmlProcessor is responsible for processing an FXML file and generating the corresponding Java code.
+     *
+     * @param filePath         The path to the FXML file to be processed.
+     * @param resourceRootPath The root path to the resources used by the FXML file.
+     * @param rootPackage      The root package for the generated Java code.
+     * @param classLoader      The class loader to use for resolving imported classes.
+     */
     public FxmlProcessor(Path filePath, Path resourceRootPath, String rootPackage, ClassLoader classLoader) {
         this.rootPackage = rootPackage;
         Path absoluteFilePath = filePath.toAbsolutePath();
@@ -172,34 +184,75 @@ public class FxmlProcessor {
                               .build();
     }
 
+    /**
+     * Writes the generated Java code to a specified path.
+     *
+     * @param path The path where the Java file will be written to.
+     * @throws IOException If an I/O error occurs while writing the file.
+     */
     public void writeTo(Path path) throws IOException {
         javaFile.writeTo(path);
     }
 
+    /**
+     * Returns the JavaFileObject representation of the generated Java code.
+     *
+     * @return The JavaFileObject representation of the generated Java code.
+     */
     public JavaFileObject toJavaFileObject() {
         return javaFile.toJavaFileObject();
     }
 
+    /**
+     * Returns the set of required modules.
+     *
+     * @return The set of required modules.
+     */
     public Set<String> getRequiredModules() {
         return resolver.getResolvedModules();
     }
 
+    /**
+     * Returns the canonical class name of the generated Java class.
+     *
+     * @return The canonical class name.
+     */
     public String getCanonicalClassName() {
         return canonicalClassName;
     }
 
+    /**
+     * Returns the relative file path of the fxml file from the resource root.
+     *
+     * @return The relative file path.
+     */
     public Path getRelativeFilePath() {
         return relativeFilePath;
     }
 
+    /**
+     * Returns the root class of the JavaFX FXML file.
+     *
+     * @return The root class of the JavaFX FXML file.
+     */
     public Class<?> getRootClass() {
         return rootClass;
     }
 
+    /**
+     * Returns the controller class associated with the JavaFX FXML file.
+     *
+     * @return The controller class associated with the JavaFX FXML file.
+     */
     public Class<?> getControllerClass() {
         return controllerClass;
     }
 
+    /**
+     * Returns the root package name for the application.
+     *
+     * @return The root package name for the application.
+     */
     public String getRootPackage() {
         return rootPackage;
     }

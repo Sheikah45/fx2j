@@ -106,7 +106,6 @@ public class Fx2jPlugin implements Plugin<Project> {
             task.delete(fx2jSourceSet.map(SourceSet::getAllSource));
         });
 
-
         tasks.named("build").configure(build -> build.dependsOn(fx2jJarTask));
         tasks.named("clean").configure(clean -> clean.dependsOn(cleanFx2jTask));
     }

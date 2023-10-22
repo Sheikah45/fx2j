@@ -20,10 +20,10 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
-            <option value="$PROJECT_DIR$/api" />
             <option value="$PROJECT_DIR$/buildSrc" />
-            <option value="$PROJECT_DIR$/gradle-plugin" />
-            <option value="$PROJECT_DIR$/processor" />
+            <option value="$PROJECT_DIR$/fx2j-api" />
+            <option value="$PROJECT_DIR$/fx2j-gradle-plugin" />
+            <option value="$PROJECT_DIR$/fx2j-processor" />
           </set>
         </option>
       </GradleProjectSettings>

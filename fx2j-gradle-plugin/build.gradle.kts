@@ -1,21 +1,15 @@
 plugins {
-    id("java-gradle-plugin")
-    id("com.github.johnrengelman.shadow") version "8.1.1"
+    id("com.gradle.plugin-publish") version "1.2.1"
 
-    id("io.github.sheikah45.fx2j.conventions-publish")
+    id("io.github.sheikah45.fx2j.conventions-repository")
     id("io.github.sheikah45.fx2j.conventions-java")
 }
+
+group = "io.github.sheikah45.fx2j"
+
 dependencies {
-    implementation(project(":processor"))
-}
-
-tasks.jar {
-    enabled = false
-}
-
-tasks.shadowJar {
-    archiveBaseName.set("${rootProject.name}-${project.name}")
-    archiveClassifier.set("")
+    implementation(project(":fx2j-processor"))
+    implementation(gradleApi())
 }
 
 gradlePlugin {
@@ -28,7 +22,7 @@ gradlePlugin {
             implementationClass = "io.github.sheikah45.fx2j.gradle.plugin.Fx2jPlugin"
             displayName = properties["project_display_name"].toString()
             description = properties["project_description"].toString()
-            tags.set(listOf("fx2j", "javafx", "fxml"))
+            tags.set(listOf("fx2j", "javafx", "fxml", "aot"))
         }
     }
 }

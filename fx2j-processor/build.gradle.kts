@@ -5,7 +5,7 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":api"))
+    implementation(project(":fx2j-api"))
     implementation("com.squareup:javapoet:1.13.0")
 }
 
