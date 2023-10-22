@@ -34,10 +34,6 @@ tasks.jacocoTestReport {
     }
 }
 
-tasks.withType(Javadoc::class.java) {
-    options.outputLevel = JavadocOutputLevel.QUIET
-}
-
 testlogger {
     showSimpleNames = true
     showPassed = false

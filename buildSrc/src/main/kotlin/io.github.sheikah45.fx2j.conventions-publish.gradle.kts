@@ -18,7 +18,7 @@ val buildTime: String by lazy {
     DateTimeFormatter.ofPattern("HH:mm:ss.SSSZ").format(buildTimeAndDate)
 }
 
-tasks.withType(Jar::class.java) {
+tasks.withType<Jar> {
     manifest {
         attributes(
             "Created-By" to "${System.getProperty("java.version")} (${System.getProperty("java.vendor")} ${
