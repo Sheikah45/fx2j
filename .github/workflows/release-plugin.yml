@@ -6,11 +6,10 @@ name: Prepare Release
 on:
   push:
     tags:
-      - *
+      - "*"
 
 jobs:
   release:
-    if: github.ref_name == github.event.repository.default_branch
     environment: deploy
     runs-on: ubuntu-latest
 
