@@ -35,7 +35,9 @@ jobs:
       run: chmod +x gradlew
 
     - name: Build
-      run: ./gradlew build
+      run: xvfb-run --auto-servernum ./gradlew build
+      env:
+        JAVA_TOOL_OPTIONS: "-Dprism.verbose=true -Dprism.order=sw"
 
     - name: Coverage Report
       run: ./gradlew jacocoTestReport
