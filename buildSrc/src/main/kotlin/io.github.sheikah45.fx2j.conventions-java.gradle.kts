@@ -20,6 +20,12 @@ tasks.test {
     systemProperties = mapOf("junit.jupiter.execution.parallel.enabled" to true)
 }
 
+tasks.jacocoTestReport {
+    reports {
+        xml.required.set(true)
+    }
+}
+
 testlogger {
     showSimpleNames = true
     showPassed = false
