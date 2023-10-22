@@ -1,0 +1,53 @@
+# This workflow will build a Java project with Gradle
+# For more information see: https://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-gradle
+
+name: Prepare Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version'
+        required: true
+        type: string
+
+jobs:
+  release:
+    if: github.ref_name == github.event.repository.default_branch
+    environment: deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup with Gradle
+        uses: gradle/gradle-build-action@v2.6.0
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Configure GPG Key
+        run: |
+          echo -n "${{ secrets.SIGNING_KEY }}" | base64 --decode > ~/.gnupg/secring.gpg
+
+      - name: Publish
+        run: xvfb-run --auto-servernum ./gradlew publish -Pversion="${{ github.event.inputs.version }}" -Psigning.secretKeyRingFile="$HOME/.gnupg/secring.gpg" -Psigning.password="${{ secrets.SIGNING_KEY_PASSWORD }}" -Psigning.keyId="${{ secrets.SIGNING_KEY_ID }}" -PsonatypeUsername="${{ secrets.SONATYPE_USERNAME }}" -PsonatypeUsername="${{ secrets.SONATYPE_PASSWORD }}"
+        env:
+          JAVA_TOOL_OPTIONS: "-Dprism.verbose=true -Dprism.order=sw"
+
+      - name: Create Draft Release
+        id: create_release
+        uses: ncipollo/release-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          commit: ${{ github.sha }}
+          tag: ${{ github.event.inputs.version }}
+          draft: true
+          generateReleaseNotes: true
+          token: ${{ secrets.GITHUB_TOKEN }}
