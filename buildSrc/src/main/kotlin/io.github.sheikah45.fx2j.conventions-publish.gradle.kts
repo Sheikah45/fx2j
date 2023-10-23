@@ -2,11 +2,13 @@ import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 
 plugins {
-    `maven-publish`
     java
-
-    id("io.github.sheikah45.fx2j.conventions-repository")
+    signing
+    `maven-publish`
+    publishing
 }
+
+group = "io.github.sheikah45.fx2j"
 
 val buildTimeAndDate: OffsetDateTime by lazy {
     OffsetDateTime.now()
@@ -78,4 +80,24 @@ publishing {
             }
         }
     }
+}
+
+publishing {
+    repositories {
+        maven {
+            url = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
+            credentials {
+                username = project.properties["sonatypeUsername"].toString()
+                password = project.properties["sonatypePassword"].toString()
+            }
+        }
+    }
+}
+
+
+signing {
+    publishing.publications.configureEach {
+        sign(this)
+    }
+    sign(configurations.archives.get())
 }
