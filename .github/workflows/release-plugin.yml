@@ -27,6 +27,11 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Check
+        run: xvfb-run --auto-servernum ./gradlew check -Pversion="${{ github.ref_name }}"
+        env:
+          JAVA_TOOL_OPTIONS: "-Dprism.verbose=true -Dprism.order=sw"
+
       - name: Configure GPG Key
         run: |
           echo -n "${{ secrets.SIGNING_KEY }}" | base64 --decode > $HOME/secring.gpg
