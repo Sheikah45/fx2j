@@ -16,6 +16,8 @@ import java.util.function.Function;
 @SuppressWarnings({"unchecked", "unused"})
 public class Fx2jLoader {
 
+    private static final System.Logger LOGGER = System.getLogger(Fx2jLoader.class.getCanonicalName());
+
     private static final List<Fx2jBuilderFinder> BUILDER_FINDERS;
     private static final boolean FALL_BACK_TO_FXML;
 
@@ -143,10 +145,15 @@ public class Fx2jLoader {
             Fx2jBuilder<? super Object, ? super Object> builder = (Fx2jBuilder<? super Object, ? super Object>) finder.findBuilder(
                     location);
             if (builder != null) {
-                builder.build(controller, root, resources, controllerFactory);
-                setController(builder.getController());
-                setRoot(builder.getRoot());
-                return (T) builder.getRoot();
+                try {
+                    builder.build(controller, root, resources, controllerFactory);
+                    setController(builder.getController());
+                    setRoot(builder.getRoot());
+                    return (T) builder.getRoot();
+                } catch (Exception exception) {
+                    LOGGER.log(System.Logger.Level.WARNING,
+                               () -> "%s failed during build falling back".formatted(builder.getClass()), exception);
+                }
             }
         }
 
