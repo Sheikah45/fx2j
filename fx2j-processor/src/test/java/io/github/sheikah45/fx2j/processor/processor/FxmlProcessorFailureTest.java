@@ -62,4 +62,11 @@ public class FxmlProcessorFailureTest extends AbstractProcessorTest {
         assertThrows(ProcessorException.class, () -> new FxmlProcessor(filePath, resourcesRoot, ROOT_PACKAGE,
                                                                        classLoader));
     }
+
+    @Test
+    public void testRelativeResource() {
+        Path filePath = failFxml.resolve("resource-location.fxml");
+        assertThrows(ProcessorException.class, () -> new FxmlProcessor(filePath, resourcesRoot, ROOT_PACKAGE,
+                                                                       classLoader));
+    }
 }
