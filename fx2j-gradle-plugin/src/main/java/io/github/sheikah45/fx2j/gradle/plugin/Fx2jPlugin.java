@@ -68,7 +68,6 @@ public class Fx2jPlugin implements Plugin<Project> {
                                  configuration -> configuration.extendsFrom(baseRuntimeClassPathConfiguration.get()));
             baseSourceSet.setRuntimeClasspath(baseSourceSet.getRuntimeClasspath()
                                                            .plus(project.files(sourceSet.getOutput())));
-            baseSourceSetProvider.map(SourceSet::getRuntimeOnlyConfigurationName);
 
             tasks.named(sourceSet.getCompileJavaTaskName()).configure(task -> task.dependsOn(compileFxmlTask));
         });
