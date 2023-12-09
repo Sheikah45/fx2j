@@ -795,6 +795,10 @@ public class ObjectNodeProcessor {
             return CodeBlock.of("$L", reference);
         }
 
+        if (valueString.startsWith("@")) {
+            throw new UnsupportedOperationException("Location resolution not yet supported");
+        }
+
         if (valueType == String.class) {
             if (valueString.startsWith("%")) {
                 return CodeBlock.of("$1L.getString($2S)", FxmlProcessor.RESOURCES_NAME, valueString.substring(1));
