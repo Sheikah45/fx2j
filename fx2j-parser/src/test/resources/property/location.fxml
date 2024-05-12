@@ -1,0 +1,2 @@
+<?import javafx.scene.image.Image?>
+<Image xmlns:fx="http://javafx.com/fxml" url="@test.png"/>

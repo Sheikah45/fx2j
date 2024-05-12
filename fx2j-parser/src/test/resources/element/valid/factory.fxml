@@ -1,0 +1,2 @@
+<?import java.util.List?>
+<List xmlns:fx="http://javafx.com/fxml" fx:factory="of"/>

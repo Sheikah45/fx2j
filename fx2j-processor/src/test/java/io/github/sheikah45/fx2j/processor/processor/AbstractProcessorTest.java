@@ -20,7 +20,8 @@ public abstract class AbstractProcessorTest {
 
 
     protected static final String ROOT_PACKAGE = "test";
-    protected final Path resourcesRoot = Path.of("src/test/resources");
+    protected static final Path RESOURCES_ROOT = Path.of("src/test/resources");
+
     protected final ClassLoader classLoader = getClass().getClassLoader();
 
     @TempDir

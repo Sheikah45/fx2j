@@ -25,20 +25,20 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 
 public class FxmlProcessorControllerTest extends AbstractProcessorTest {
 
-    private final Path controllerFxml = resourcesRoot.resolve("fxml/controller");
+    private static final Path CONTROLLER_FXML = RESOURCES_ROOT.resolve("fxml/controller");
 
     @Test
     public void testControllerType() throws Exception {
-        Path filePath = controllerFxml.resolve("controller-type.fxml");
+        Path filePath = CONTROLLER_FXML.resolve("controller-type.fxml");
         PublicController controller = buildAndRetrieveController(filePath);
         assertNotNull(controller);
         assertNotNull(controller.button);
     }
 
     private <C> C buildAndRetrieveController(Path mainFilePath, Path... supportingFilePaths) throws Exception {
-        FxmlProcessor mainProcessor = new FxmlProcessor(mainFilePath, resourcesRoot, ROOT_PACKAGE, classLoader);
+        FxmlProcessor mainProcessor = new FxmlProcessor(mainFilePath, RESOURCES_ROOT, ROOT_PACKAGE, classLoader);
         FxmlProcessor[] supportingProcessors = Arrays.stream(supportingFilePaths)
-                                                     .map(path -> new FxmlProcessor(path, resourcesRoot, ROOT_PACKAGE,
+                                                     .map(path -> new FxmlProcessor(path, RESOURCES_ROOT, ROOT_PACKAGE,
                                                                                     classLoader
                                                      ))
                                                      .toArray(FxmlProcessor[]::new);
@@ -49,7 +49,7 @@ public class FxmlProcessorControllerTest extends AbstractProcessorTest {
 
     @Test
     public void testPublicController() throws Exception {
-        Path filePath = controllerFxml.resolve("public-controller.fxml");
+        Path filePath = CONTROLLER_FXML.resolve("public-controller.fxml");
         PublicController controller = buildAndRetrieveController(filePath);
         assertNotNull(controller);
         assertNotNull(controller.button);
@@ -57,7 +57,7 @@ public class FxmlProcessorControllerTest extends AbstractProcessorTest {
 
     @Test
     public void testSetterController() throws Exception {
-        Path filePath = controllerFxml.resolve("setter-controller.fxml");
+        Path filePath = CONTROLLER_FXML.resolve("setter-controller.fxml");
         SetterController controller = buildAndRetrieveController(filePath);
         assertNotNull(controller);
         assertNotNull(controller.getButton());
@@ -65,7 +65,7 @@ public class FxmlProcessorControllerTest extends AbstractProcessorTest {
 
     @Test
     public void testEventHandlerMethodController() throws Exception {
-        Path filePath = controllerFxml.resolve("event-handler-method.fxml");
+        Path filePath = CONTROLLER_FXML.resolve("event-handler-method.fxml");
         EventHandlerMethodController controller = buildAndRetrieveController(filePath);
 
         assertNotNull(controller);
@@ -86,7 +86,7 @@ public class FxmlProcessorControllerTest extends AbstractProcessorTest {
 
     @Test
     public void testOnChangeController() throws Exception {
-        Path filePath = controllerFxml.resolve("change-handler-controller.fxml");
+        Path filePath = CONTROLLER_FXML.resolve("change-handler-controller.fxml");
         ChangeHandlerController controller = buildAndRetrieveController(filePath);
 
         assertNull(controller.textValue);
@@ -111,8 +111,8 @@ public class FxmlProcessorControllerTest extends AbstractProcessorTest {
 
     @Test
     public void testIncludeController() throws Exception {
-        IncludeController controller = buildAndRetrieveController(controllerFxml.resolve("include-controller.fxml"),
-                                                                  controllerFxml.resolve("public-controller.fxml"));
+        IncludeController controller = buildAndRetrieveController(CONTROLLER_FXML.resolve("include-controller.fxml"),
+                                                                  CONTROLLER_FXML.resolve("public-controller.fxml"));
         assertNotNull(controller);
         assertNotNull(controller.paneController);
     }
@@ -120,8 +120,8 @@ public class FxmlProcessorControllerTest extends AbstractProcessorTest {
     @Test
     public void testProvidedController() throws Exception {
         PublicController providedController = new PublicController();
-        FxmlProcessor mainBuilderJavaFile = new FxmlProcessor(controllerFxml.resolve("public-controller.fxml"),
-                                                              resourcesRoot, ROOT_PACKAGE, classLoader
+        FxmlProcessor mainBuilderJavaFile = new FxmlProcessor(CONTROLLER_FXML.resolve("public-controller.fxml"),
+                                                              RESOURCES_ROOT, ROOT_PACKAGE, classLoader
         );
         Fx2jBuilder<PublicController, Object> fx2jBuilder = compileAndLoadBuilder(mainBuilderJavaFile);
         fx2jBuilder.build(providedController, null, null, null);
@@ -133,8 +133,8 @@ public class FxmlProcessorControllerTest extends AbstractProcessorTest {
     @Test
     public void testControllerFactory() throws Exception {
         PublicController providedController = new PublicController();
-        FxmlProcessor mainBuilderProcessor = new FxmlProcessor(controllerFxml.resolve("public-controller.fxml"),
-                                                               resourcesRoot, ROOT_PACKAGE, classLoader
+        FxmlProcessor mainBuilderProcessor = new FxmlProcessor(CONTROLLER_FXML.resolve("public-controller.fxml"),
+                                                               RESOURCES_ROOT, ROOT_PACKAGE, classLoader
         );
         Fx2jBuilder<PublicController, Object> fx2jBuilder = compileAndLoadBuilder(mainBuilderProcessor);
         fx2jBuilder.build(null, null, null, clazz -> {
@@ -152,8 +152,8 @@ public class FxmlProcessorControllerTest extends AbstractProcessorTest {
     @Test
     public void testProvidedControllerPrioritized() throws Exception {
         PublicController providedController = new PublicController();
-        FxmlProcessor mainBuilderProcessor = new FxmlProcessor(controllerFxml.resolve("public-controller.fxml"),
-                                                               resourcesRoot, ROOT_PACKAGE, classLoader
+        FxmlProcessor mainBuilderProcessor = new FxmlProcessor(CONTROLLER_FXML.resolve("public-controller.fxml"),
+                                                               RESOURCES_ROOT, ROOT_PACKAGE, classLoader
         );
         Fx2jBuilder<PublicController, Object> fx2jBuilder = compileAndLoadBuilder(mainBuilderProcessor);
         fx2jBuilder.build(providedController, null, null, clazz -> {
