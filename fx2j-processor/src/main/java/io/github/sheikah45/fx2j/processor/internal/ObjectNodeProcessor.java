@@ -41,7 +41,7 @@ public class ObjectNodeProcessor {
                                                                  Character.class, Float.class, Double.class,
                                                                  Boolean.class);
 
-    private static final Pattern BINDING_PATTERN = Pattern.compile("\\$\\{.*\\}");
+    private static final Pattern BINDING_PATTERN = Pattern.compile("\\$\\{.*}");
     private static final Pattern CHANGE_PROPERTY_PATTERN = Pattern.compile("on(?<property>.+)Change");
     private static final String EVENT_HANDLER_CLASS = "javafx.event.EventHandler";
     private static final String ON_CHANGE = "onChange";
@@ -557,7 +557,7 @@ public class ObjectNodeProcessor {
             }
 
             if (paramChildren.size() == 1) {
-                ObjectNodeCode nodeCode = buildChildNode(paramChildren.get(0));
+                ObjectNodeCode nodeCode = buildChildNode(paramChildren.getFirst());
                 return CodeBlock.of("$L", nodeCode.nodeIdentifier());
             }
 
@@ -597,7 +597,7 @@ public class ObjectNodeProcessor {
             List<FxmlNode> children = propertyNode.children();
             if (!children.isEmpty()) {
                 if (children.size() == 1) {
-                    ObjectNodeCode nodeCode = buildChildNode(children.get(0));
+                    ObjectNodeCode nodeCode = buildChildNode(children.getFirst());
                     if (!valueTypeBound.isAssignableFrom(nodeCode.nodeClass())) {
                         throw new IllegalArgumentException(
                                 "Value type of %s can not be assigned to node type of %s".formatted(valueTypeBound,
@@ -958,7 +958,7 @@ public class ObjectNodeProcessor {
                 throw new UnsupportedOperationException(
                         "Cannot set property %s from multiple child nodes".formatted(property));
             }
-            processPropertyChildSetter(propertyNodes.get(0), propertySetter);
+            processPropertyChildSetter(propertyNodes.getFirst(), propertySetter);
             return;
         }
 
@@ -1063,7 +1063,7 @@ public class ObjectNodeProcessor {
         Method propertySetter = resolver.resolveStaticSetter(staticPropertyClass, staticProperty).orElse(null);
 
         if (propertySetter != null && propertyNodes.size() == 1) {
-            processStaticPropertyChildSetter(propertyNodes.get(0), propertySetter, staticPropertyClass);
+            processStaticPropertyChildSetter(propertyNodes.getFirst(), propertySetter, staticPropertyClass);
             return;
         }
 

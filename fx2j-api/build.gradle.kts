@@ -5,7 +5,7 @@ plugins {
 }
 
 javafx {
-    modules = mutableListOf("javafx.fxml")
+    modules = listOf("javafx.fxml")
     configuration = "compileOnly"
 }
 

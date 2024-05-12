@@ -158,19 +158,19 @@ public class ReflectionResolver {
     }
 
     public Class<?> resolveClassFromType(Type type) {
-        if (type instanceof Class<?> clazz) {
-            return clazz;
-        } else if (type instanceof ParameterizedType parameterizedType) {
-            return resolveClassFromType(parameterizedType.getRawType());
-        } else if (type instanceof WildcardType wildcardType) {
-            Type[] upperBounds = wildcardType.getUpperBounds();
-            if (upperBounds.length != 1) {
-                throw new IllegalArgumentException("Type does not have exactly one upper bound");
+        return switch (type) {
+            case Class<?> clazz -> clazz;
+            case ParameterizedType parameterizedType -> resolveClassFromType(parameterizedType.getRawType());
+            case WildcardType wildcardType -> {
+                Type[] upperBounds = wildcardType.getUpperBounds();
+                if (upperBounds.length != 1) {
+                    throw new IllegalArgumentException("Type does not have exactly one upper bound");
+                }
+                yield resolveClassFromType(upperBounds[0]);
             }
-            return resolveClassFromType(upperBounds[0]);
-        } else {
-            throw new UnsupportedOperationException("Unable to get class from type %s".formatted(type));
-        }
+            case null, default ->
+                    throw new UnsupportedOperationException("Unable to get class from type %s".formatted(type));
+        };
     }
 
     public Class<?>[] resolveUpperBoundTypeArguments(Type type) {
@@ -184,19 +184,19 @@ public class ReflectionResolver {
     }
 
     public Class<?> resolveTypeUpperBound(Type type) {
-        if (type instanceof Class<?> clazz) {
-            return clazz;
-        } else if (type instanceof ParameterizedType parameterizedType) {
-            return resolveTypeUpperBound(parameterizedType.getRawType());
-        } else if (type instanceof WildcardType wildcardType) {
-            Type[] upperBounds = wildcardType.getUpperBounds();
-            if (upperBounds.length != 1) {
-                throw new IllegalArgumentException("Type does not have exactly one upper bound");
+        return switch (type) {
+            case Class<?> clazz -> clazz;
+            case ParameterizedType parameterizedType -> resolveTypeUpperBound(parameterizedType.getRawType());
+            case WildcardType wildcardType -> {
+                Type[] upperBounds = wildcardType.getUpperBounds();
+                if (upperBounds.length != 1) {
+                    throw new IllegalArgumentException("Type does not have exactly one upper bound");
+                }
+                yield resolveTypeUpperBound(upperBounds[0]);
             }
-            return resolveTypeUpperBound(upperBounds[0]);
-        } else {
-            throw new UnsupportedOperationException("Cannot resolve upper bound of type %s".formatted(type));
-        }
+            case null, default ->
+                    throw new UnsupportedOperationException("Cannot resolve upper bound of type %s".formatted(type));
+        };
     }
 
     public Class<?>[] resolveLowerBoundTypeArguments(ParameterizedType parameterizedType) {
@@ -206,19 +206,19 @@ public class ReflectionResolver {
     }
 
     public Class<?> resolveTypeLowerBound(Type type) {
-        if (type instanceof Class<?> clazz) {
-            return clazz;
-        } else if (type instanceof ParameterizedType parameterizedType) {
-            return resolveTypeLowerBound(parameterizedType.getRawType());
-        } else if (type instanceof WildcardType wildcardType) {
-            Type[] lowerBounds = wildcardType.getLowerBounds();
-            if (lowerBounds.length != 1) {
-                throw new IllegalArgumentException("Type does not have exactly one lower bound");
+        return switch (type) {
+            case Class<?> clazz -> clazz;
+            case ParameterizedType parameterizedType -> resolveTypeLowerBound(parameterizedType.getRawType());
+            case WildcardType wildcardType -> {
+                Type[] lowerBounds = wildcardType.getLowerBounds();
+                if (lowerBounds.length != 1) {
+                    throw new IllegalArgumentException("Type does not have exactly one lower bound");
+                }
+                yield resolveTypeUpperBound(lowerBounds[0]);
             }
-            return resolveTypeUpperBound(lowerBounds[0]);
-        } else {
-            throw new UnsupportedOperationException("Cannot resolve lower bound of type %s".formatted(type));
-        }
+            case null, default ->
+                    throw new UnsupportedOperationException("Cannot resolve lower bound of type %s".formatted(type));
+        };
     }
 
     public boolean parameterTypeArgumentsMeetBounds(Type parameterType, Class<?>[] boundTypeArguments) {
@@ -373,28 +373,31 @@ public class ReflectionResolver {
     }
 
     public TypeName resolveTypeNameWithoutVariables(Type type) {
-        if (type instanceof Class<?> clazz) {
-            return ClassName.get(clazz);
-        } else if (type instanceof ParameterizedType parameterizedType) {
-            TypeName[] typeNames = Arrays.stream(parameterizedType.getActualTypeArguments())
-                                         .map(this::resolveTypeNameWithoutVariables)
-                                         .toArray(TypeName[]::new);
-            Type rawType = parameterizedType.getRawType();
-            if (!(rawType instanceof Class<?> rawClass)) {
-                throw new UnsupportedOperationException(
-                        "Unable to resolve type name for parameterized type that isn't a class %s".formatted(rawType));
+        return switch (type) {
+            case Class<?> clazz -> ClassName.get(clazz);
+            case ParameterizedType parameterizedType -> {
+                TypeName[] typeNames = Arrays.stream(parameterizedType.getActualTypeArguments())
+                                             .map(this::resolveTypeNameWithoutVariables)
+                                             .toArray(TypeName[]::new);
+                Type rawType = parameterizedType.getRawType();
+                if (!(rawType instanceof Class<?> rawClass)) {
+                    throw new UnsupportedOperationException(
+                            "Unable to resolve type name for parameterized type that isn't a class %s".formatted(
+                                    rawType));
+                }
+                yield ParameterizedTypeName.get(ClassName.get(rawClass), typeNames);
             }
-            return ParameterizedTypeName.get(ClassName.get(rawClass), typeNames);
-        } else if (type instanceof TypeVariable<?> typeVariable) {
-            Type[] bounds = typeVariable.getBounds();
-            if (bounds.length != 1) {
-                throw new UnsupportedOperationException(
-                        "Unable to resolve type name for multiple bounds for type %s".formatted(typeVariable));
-            }
+            case TypeVariable<?> typeVariable -> {
+                Type[] bounds = typeVariable.getBounds();
+                if (bounds.length != 1) {
+                    throw new UnsupportedOperationException(
+                            "Unable to resolve type name for multiple bounds for type %s".formatted(typeVariable));
+                }
 
-            return WildcardTypeName.subtypeOf(resolveTypeNameWithoutVariables(bounds[0]));
-        } else {
-            return TypeName.get(type);
-        }
+                yield WildcardTypeName.subtypeOf(resolveTypeNameWithoutVariables(bounds[0]));
+            }
+            case null -> null;
+            default -> TypeName.get(type);
+        };
     }
 }
