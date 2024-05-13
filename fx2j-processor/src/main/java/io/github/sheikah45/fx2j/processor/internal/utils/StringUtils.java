@@ -55,8 +55,4 @@ public class StringUtils {
     public static String fxmlFileToPackageName(Path filePath) {
         return filePath.getParent().toString().replace(File.separatorChar, '.').toLowerCase(Locale.ROOT);
     }
-
-    public static boolean isNullOrBlank(String string) {
-        return string == null || string.isBlank();
-    }
 }

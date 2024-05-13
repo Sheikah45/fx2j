@@ -1,0 +1,8 @@
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.Label?>
+<VBox xmlns:fx="http://javafx.com/fxml">
+    <alignment value="TOP_RIGHT">
+        text
+        <Label/>
+    </alignment>
+</VBox>

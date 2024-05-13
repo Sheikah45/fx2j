@@ -1,6 +1,6 @@
+<?language javascript?>
+
 <?import javafx.scene.layout.VBox?>
 <VBox xmlns:fx="http://javafx.com/fxml">
-    <GridPane.alignment>
-        TOP_RIGHT
-    </GridPane.alignment>
+    <fx:script source="test.js" charset="utf-8"/>
 </VBox>

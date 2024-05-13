@@ -1,0 +1,4 @@
+<?import javafx.scene.control.Label?>
+<Label xmlns:fx="http://javafx.com/fxml">
+    test
+</Label>

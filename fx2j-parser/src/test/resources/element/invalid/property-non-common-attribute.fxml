@@ -1,6 +1,4 @@
 <?import javafx.scene.layout.VBox?>
 <VBox xmlns:fx="http://javafx.com/fxml">
-    <GridPane.alignment>
-        TOP_RIGHT
-    </GridPane.alignment>
+    <properties fx:id="123"/>
 </VBox>

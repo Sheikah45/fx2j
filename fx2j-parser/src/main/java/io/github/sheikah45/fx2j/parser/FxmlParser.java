@@ -1,5 +1,28 @@
 package io.github.sheikah45.fx2j.parser;
 
+import io.github.sheikah45.fx2j.parser.attribute.ControllerAttribute;
+import io.github.sheikah45.fx2j.parser.attribute.EventHandlerAttribute;
+import io.github.sheikah45.fx2j.parser.attribute.FxmlAttribute;
+import io.github.sheikah45.fx2j.parser.attribute.IdAttribute;
+import io.github.sheikah45.fx2j.parser.attribute.InstancePropertyAttribute;
+import io.github.sheikah45.fx2j.parser.attribute.StaticPropertyAttribute;
+import io.github.sheikah45.fx2j.parser.element.ClassInstanceElement;
+import io.github.sheikah45.fx2j.parser.element.ConstantElement;
+import io.github.sheikah45.fx2j.parser.element.CopyElement;
+import io.github.sheikah45.fx2j.parser.element.DeclarationElement;
+import io.github.sheikah45.fx2j.parser.element.DefineElement;
+import io.github.sheikah45.fx2j.parser.element.FactoryElement;
+import io.github.sheikah45.fx2j.parser.element.FxmlElement;
+import io.github.sheikah45.fx2j.parser.element.IncludeElement;
+import io.github.sheikah45.fx2j.parser.element.InstanceElement;
+import io.github.sheikah45.fx2j.parser.element.InstancePropertyElement;
+import io.github.sheikah45.fx2j.parser.element.ReferenceElement;
+import io.github.sheikah45.fx2j.parser.element.RootElement;
+import io.github.sheikah45.fx2j.parser.element.ScriptElement;
+import io.github.sheikah45.fx2j.parser.element.ScriptSource;
+import io.github.sheikah45.fx2j.parser.element.StaticPropertyElement;
+import io.github.sheikah45.fx2j.parser.element.ValueElement;
+import io.github.sheikah45.fx2j.parser.property.Value;
 import io.github.sheikah45.fx2j.parser.utils.StringUtils;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -28,44 +51,96 @@ public class FxmlParser {
         try {
             DocumentBuilder documentBuilder = documentBuilderFactory.newDocumentBuilder();
             Document document = documentBuilder.parse(filePath.toFile());
-            return new FxmlComponents(populateElement(document.getDocumentElement()),
-                                      extractProcessingInstructions(document));
+            Element element = document.getDocumentElement();
+            FxmlElement fxmlElement = createFxmlElement(element);
+            if (!(fxmlElement instanceof DeclarationElement declarationElement)) {
+                throw new ParseException("Root element is not a new declaration of an instance of a class");
+            }
+            return new FxmlComponents(declarationElement, extractProcessingInstructions(document));
         } catch (Exception e) {
             throw new ParseException("Error parsing document", e);
         }
     }
 
-    private static FxmlNode populateElement(Element element) {
-        NamedNodeMap attributesNodeMap = element.getAttributes();
-        FxmlElement fxmlElement = createFxmlElement(element);
-
-        int attrLength = attributesNodeMap.getLength();
-
-        List<FxmlAttribute> attributes = IntStream.range(0, attrLength)
-                                                  .mapToObj(attributesNodeMap::item)
-                                                  .filter(item -> !item.getNodeName().startsWith("xmlns"))
-                                                  .map(FxmlParser::createFxmlAttribute)
-                                                  .toList();
-
-        if (!element.hasChildNodes()) {
-            return new FxmlNode(fxmlElement, attributes, "", List.of());
-        }
-
+    private static String retrieveInnerText(Element element) {
         NodeList childNodes = element.getChildNodes();
         int childrenLength = childNodes.getLength();
-        List<FxmlNode> children = new ArrayList<>();
-        String innerText = "";
 
-        for (int i = 0; i < childrenLength; i++) {
-            Node item = childNodes.item(i);
-            if (item instanceof Text text && !StringUtils.isNullOrBlank(text.getTextContent())) {
-                innerText = text.getTextContent().replaceAll("\\s+", " ").strip();
-            } else if (item instanceof Element childElement) {
-                children.add(populateElement(childElement));
+        return IntStream.range(0, childrenLength)
+                        .sorted()
+                        .map(index -> childrenLength - index - 1)
+                        .mapToObj(childNodes::item)
+                        .filter(Text.class::isInstance)
+                        .map(Text.class::cast)
+                        .map(Text::getTextContent)
+                        .filter(text -> !StringUtils.isNullOrBlank(text))
+                        .map(text -> text.replaceAll("\\s+", " ").strip())
+                        .findFirst()
+                        .orElse("");
+    }
+
+    private static ClassInstanceElement.Content createContent(Element element) {
+        List<FxmlAttribute> attributes = createAttributes(element);
+        List<FxmlElement> children = createChildren(element);
+        String text = retrieveInnerText(element);
+        return new ClassInstanceElement.Content(attributes, children, createPropertyValue(text));
+    }
+
+    private static Value createPropertyValue(Element element) {
+        List<Value.Single> values = new ArrayList<>();
+
+        createAttributes(element).stream().map(attribute -> {
+            if (!(attribute instanceof FxmlAttribute.CommonAttribute commonAttribute)) {
+                throw new ParseException("property attribute contains a non common attribute");
             }
+
+            return commonAttribute;
+        }).map(Value.Attribute::new).forEach(values::add);
+
+        createChildren(element)
+                .stream()
+                .map(Value.Element::new)
+                .forEach(values::add);
+
+        values.add(createPropertyValue(retrieveInnerText(element)));
+
+        List<Value.Single> populatedValues = values.stream()
+                                                   .filter(value -> (!(value instanceof Value.Empty)))
+                                                   .toList();
+
+        if (populatedValues.isEmpty()) {
+            return new Value.Empty();
         }
 
-        return new FxmlNode(fxmlElement, attributes, innerText, children);
+        if (populatedValues.size() == 1) {
+            return populatedValues.getFirst();
+        }
+
+        return new Value.Multi(populatedValues);
+    }
+
+    private static List<FxmlElement> createChildren(Element element) {
+        NodeList childNodes = element.getChildNodes();
+        int childrenLength = childNodes.getLength();
+
+        List<FxmlElement> children = new ArrayList<>();
+        for (int i = 0; i < childrenLength; i++) {
+            Node item = childNodes.item(i);
+            if (item instanceof Element childElement) {
+                children.add(createFxmlElement(childElement));
+            }
+        }
+        return children;
+    }
+
+    private static List<FxmlAttribute> createAttributes(Element element) {
+        NamedNodeMap attributesNodeMap = element.getAttributes();
+        int attrLength = attributesNodeMap.getLength();
+        return IntStream.range(0, attrLength)
+                        .mapToObj(attributesNodeMap::item)
+                        .filter(item -> !item.getNodeName().startsWith("xmlns"))
+                        .map(FxmlParser::createFxmlAttribute)
+                        .toList();
     }
 
     private static FxmlElement createFxmlElement(Element element) {
@@ -74,19 +149,22 @@ public class FxmlParser {
             case "fx:reference" -> createReferenceElement(element);
             case "fx:copy" -> createCopyElement(element);
             case "fx:root" -> createRootElement(element);
-            case "fx:define" -> new FxmlElement.Define();
-            case "fx:script" -> new FxmlElement.Script();
-            case String tag when tag.matches("[a-z]\\w*") -> new FxmlElement.Property.Instance(tag);
+            case "fx:define" -> createDefineElement(element);
+            case "fx:script" -> createScriptElement(element);
+            case String tag when tag.matches("[a-z]\\w*") ->
+                    new InstancePropertyElement(tag, createPropertyValue(element));
             case String tag when tag.matches("(\\w*\\.)*[A-Z]\\w*\\.[a-z]\\w*") -> {
+                Value value = createPropertyValue(element);
                 int separatorIndex = tag.lastIndexOf('.');
-                yield new FxmlElement.Property.Static(tag.substring(0, separatorIndex),
-                                                     tag.substring(separatorIndex + 1));
+                String className = tag.substring(0, separatorIndex);
+                String property = tag.substring(separatorIndex + 1);
+                yield new StaticPropertyElement(className, property, value);
             }
             default -> createInstanceElement(element);
         };
     }
 
-    private static FxmlElement.Declaration createInstanceElement(Element element) {
+    private static ClassInstanceElement createInstanceElement(Element element) {
         String className = element.getTagName();
         String factory = removeAndGetValueIfPresent(element, "fx:factory").orElse(null);
         String value = removeAndGetValueIfPresent(element, "fx:value").orElse(null);
@@ -95,96 +173,116 @@ public class FxmlParser {
             throw new ParseException("Multiple initialization attributes specified: %s".formatted(element));
         }
 
+        ClassInstanceElement.Content content = createContent(element);
+
         if (factory != null) {
-            return new FxmlElement.Declaration.Factory(className, factory);
+            return new FactoryElement(className, factory, content);
         }
 
         if (value != null) {
-            return new FxmlElement.Declaration.Value(className, value);
+            return new ValueElement(className, createPropertyValue(value), content);
         }
 
         if (constant != null) {
-            return new FxmlElement.Declaration.Constant(className, constant);
+            return new ConstantElement(className, constant, content);
         }
 
-        return new FxmlElement.Declaration.Class(className);
+        return new InstanceElement(className, content);
     }
 
-    private static FxmlElement.Root createRootElement(Element element) {
+    private static RootElement createRootElement(Element element) {
         String type = removeAndGetValueIfPresent(element, "type").orElse(Object.class.getCanonicalName());
-        return new FxmlElement.Root(type);
+        return new RootElement(type, createContent(element));
     }
 
-    private static FxmlElement.Copy createCopyElement(Element element) {
+    private static DefineElement createDefineElement(Element element) {
+        List<ClassInstanceElement> children = createChildren(element).stream().map(child -> {
+            if (!(child instanceof ClassInstanceElement classInstanceElement)) {
+                throw new ParseException("define element contains a non class instance element");
+            }
+
+            return classInstanceElement;
+        }).toList();
+
+        return new DefineElement(children);
+    }
+
+    private static ScriptElement createScriptElement(Element element) {
+        return removeAndGetValueIfPresent(element, "source").map(Path::of).map(source -> {
+            Optional<String> charset = removeAndGetValueIfPresent(element, "charset");
+            return new ScriptElement(new ScriptSource.Reference(source, charset.map(Charset::forName).orElse(null)));
+        }).orElseGet(() -> new ScriptElement(new ScriptSource.Inline(retrieveInnerText(element))));
+    }
+
+    private static CopyElement createCopyElement(Element element) {
         String source = removeAndGetValueIfPresent(element, "source").orElseThrow(
-                () -> new ParseException(
-                        "Source attribute not found in fx:reference element: %s".formatted(element)));
-        return new FxmlElement.Copy(source);
+                () -> new ParseException("Source attribute not found in fx:reference element: %s".formatted(element)));
+        return new CopyElement(source, createContent(element));
     }
 
-    private static FxmlElement.Reference createReferenceElement(Element element) {
+    private static ReferenceElement createReferenceElement(Element element) {
         String source = removeAndGetValueIfPresent(element, "source").orElseThrow(
-                () -> new ParseException(
-                        "Source attribute not found in fx:reference element: %s".formatted(element)));
-        return new FxmlElement.Reference(source);
+                () -> new ParseException("Source attribute not found in fx:reference element: %s".formatted(element)));
+        return new ReferenceElement(source, createContent(element));
     }
 
-    private static FxmlElement.Include createIncludeElement(Element element) {
+    private static IncludeElement createIncludeElement(Element element) {
         Path source = removeAndGetValueIfPresent(element, "source").map(Path::of)
-                                                                   .orElseThrow(
-                                                                           () -> new ParseException(
-                                                                                   "Source attribute not found in fx:include element: %s".formatted(
-                                                                                           element)));
+                                                                   .orElseThrow(() -> new ParseException(
+                                                                           "Source attribute not found in fx:include element: %s".formatted(
+                                                                                   element)));
 
         Path resources = removeAndGetValueIfPresent(element, "resources").map(Path::of).orElse(null);
         Charset charset = removeAndGetValueIfPresent(element, "charset").map(Charset::forName)
                                                                         .orElse(StandardCharsets.UTF_8);
-        return new FxmlElement.Include(source, resources, charset);
+
+        return new IncludeElement(source, resources, charset, createContent(element));
     }
 
     private static FxmlAttribute createFxmlAttribute(Node node) {
         return switch (node.getNodeName()) {
-            case "fx:id" -> new FxmlAttribute.Id(node.getNodeValue());
-            case "fx:controller" -> new FxmlAttribute.Controller(node.getNodeValue());
+            case "fx:id" -> new IdAttribute(node.getNodeValue());
+            case "fx:controller" -> new ControllerAttribute(node.getNodeValue());
             case String name when name.startsWith("on") ->
-                    new FxmlAttribute.EventHandler(name, createEventHandlerValue(node.getNodeValue()));
+                    new EventHandlerAttribute(name, createEventHandler(node.getNodeValue()));
             case String name when name.matches("(\\w*\\.)*[A-Z]\\w*\\.[a-z]\\w*") -> {
                 int separatorIndex = name.lastIndexOf('.');
-                yield new FxmlAttribute.Property.Static(name.substring(0, separatorIndex),
-                                                        name.substring(separatorIndex + 1),
-                                                        createPropertyValue(node.getNodeValue())
-                );
+                yield new StaticPropertyAttribute(name.substring(0, separatorIndex), name.substring(separatorIndex + 1),
+                                                  createPropertyValue(node.getNodeValue()));
             }
-            case String name -> new FxmlAttribute.Property.Instance(name, createPropertyValue(node.getNodeValue()));
+            case String name -> new InstancePropertyAttribute(name, createPropertyValue(node.getNodeValue()));
         };
     }
 
-    private static FxmlAttribute.Property.Value createPropertyValue(String value) {
+    private static Value.Single createPropertyValue(String value) {
         return switch (value) {
-            case String val when val.startsWith("@") -> new FxmlAttribute.Property.Location(Path.of(val.substring(1)));
-            case String val when val.startsWith("%") -> new FxmlAttribute.Property.Resource(val.substring(1));
-            case String val when val.matches("\\$\\{.*}") ->
-                    new FxmlAttribute.Property.Expression(val.substring(2, val.length() - 1));
-            case String val when val.startsWith("$") -> new FxmlAttribute.Property.Reference(val.substring(1));
-            case String val when val.startsWith("\\") -> new FxmlAttribute.Property.Literal(val.substring(1));
-            case String val when val.isBlank() -> new FxmlAttribute.Property.Empty();
-            case String val -> new FxmlAttribute.Property.Literal(val);
+            case String val when val.startsWith("@") -> new Value.Location(Path.of(val.substring(1)));
+            case String val when val.startsWith("%") -> new Value.Resource(val.substring(1));
+            case String val when val.matches("\\$\\{.*}") -> new Value.Expression(val.substring(2, val.length() - 1));
+            case String val when val.startsWith("$") -> new Value.Reference(val.substring(1));
+            case String val when val.startsWith("\\") -> new Value.Literal(val.substring(1));
+            case String val when val.isBlank() -> new Value.Empty();
+            case String val -> new Value.Literal(val);
         };
     }
 
-    private static FxmlAttribute.EventHandler.Value createEventHandlerValue(String value) {
+    private static Value.Handler createEventHandler(String value) {
         return switch (value) {
-            case String val when val.startsWith("#") -> new FxmlAttribute.EventHandler.Method(val.substring(1));
-            case String val when val.startsWith("$") -> new FxmlAttribute.EventHandler.Reference(val.substring(1));
-            case String val -> new FxmlAttribute.EventHandler.Script(val);
+            case String val when val.startsWith("#") -> new Value.Handler.Method(val.substring(1));
+            case String val when val.startsWith("$") -> new Value.Handler.Reference(val.substring(1));
+            case String val -> new Value.Handler.Script(val);
         };
     }
 
     private static List<FxmlProcessingInstruction> extractProcessingInstructions(Document document) {
+
+        NodeList childNodes = document.getChildNodes();
+        int childrenLength = childNodes.getLength();
+
         List<FxmlProcessingInstruction> processingInstructions = new ArrayList<>();
-        Node node = document.getFirstChild();
-        while (node != null) {
-            if (node instanceof ProcessingInstruction processingInstruction) {
+        for (int i = 0; i < childrenLength; i++) {
+            Node item = childNodes.item(i);
+            if (item instanceof ProcessingInstruction processingInstruction) {
                 processingInstructions.add(switch (processingInstruction.getTarget()) {
                     case "import" -> new FxmlProcessingInstruction.Import(processingInstruction.getData());
                     case "language" -> new FxmlProcessingInstruction.Language(processingInstruction.getData());
@@ -193,7 +291,6 @@ public class FxmlParser {
                     case String target -> new FxmlProcessingInstruction.Custom(target, processingInstruction.getData());
                 });
             }
-            node = node.getNextSibling();
         }
 
         return processingInstructions;

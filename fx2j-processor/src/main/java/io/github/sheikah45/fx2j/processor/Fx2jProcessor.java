@@ -71,7 +71,7 @@ public class Fx2jProcessor {
             throw new IllegalArgumentException("Multiple processor root packages detected: %s".formatted(rootPackages));
         }
 
-        this.rootPackage = rootPackages.get(0);
+        this.rootPackage = rootPackages.getFirst();
         builderFinderJavaFile = JavaFile.builder(this.rootPackage, buildBuilderFinderTypeSpec()).build();
         builderFinderCanonicalClassName = JavaFileUtils.getCanonicalClassName(builderFinderJavaFile);
     }
@@ -167,7 +167,7 @@ public class Fx2jProcessor {
                module %s {
                    requires io.github.sheikah45.fx2j.api;
                %s
-                                           
+                              
                    provides %s with %s;
                }
                """.formatted(rootPackage, moduleRequires.indent(4), Fx2jBuilderFinder.class.getCanonicalName(),

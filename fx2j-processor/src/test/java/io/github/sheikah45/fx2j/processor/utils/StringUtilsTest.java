@@ -80,24 +80,4 @@ class StringUtilsTest {
         Path filePath = Paths.get("myapp/test/fxml/test.fxml");
         assertEquals("myapp.test.fxml", StringUtils.fxmlFileToPackageName(filePath));
     }
-
-    @Test
-    public void testIsNullOrBlankNull() {
-        assertTrue(StringUtils.isNullOrBlank(null));
-    }
-
-    @Test
-    public void testIsNullOrBlankEmpty() {
-        assertTrue(StringUtils.isNullOrBlank(""));
-    }
-
-    @Test
-    public void testIsNullOrBlankSpaces() {
-        assertTrue(StringUtils.isNullOrBlank("     "));
-    }
-
-    @Test
-    public void testIsNullOrBlankNotEmpty() {
-        assertFalse(StringUtils.isNullOrBlank("not blank"));
-    }
 }

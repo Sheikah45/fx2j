@@ -1,0 +1,6 @@
+<?import javafx.scene.control.Label?>
+<Label xmlns:fx="http://javafx.com/fxml">
+    test1
+    <alignment>TOP_LEFT</alignment>
+    test2
+</Label>
