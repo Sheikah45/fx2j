@@ -24,6 +24,7 @@ import io.github.sheikah45.fx2j.parser.element.StaticPropertyElement;
 import io.github.sheikah45.fx2j.parser.element.ValueElement;
 import io.github.sheikah45.fx2j.parser.property.Value;
 import io.github.sheikah45.fx2j.parser.utils.StringUtils;
+import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NamedNodeMap;
@@ -102,35 +103,20 @@ public class FxmlParser {
                 .map(Value.Element::new)
                 .forEach(values::add);
 
-        values.add(createPropertyValue(retrieveInnerText(element)));
+        Value.Single innerValue = createPropertyValue(retrieveInnerText(element));
+        if (!(innerValue instanceof Value.Empty)) {
+            values.add(innerValue);
+        }
 
-        List<Value.Single> populatedValues = values.stream()
-                                                   .filter(value -> (!(value instanceof Value.Empty)))
-                                                   .toList();
-
-        if (populatedValues.isEmpty()) {
+        if (values.isEmpty()) {
             return new Value.Empty();
         }
 
-        if (populatedValues.size() == 1) {
-            return populatedValues.getFirst();
+        if (values.size() == 1) {
+            return values.getFirst();
         }
 
-        return new Value.Multi(populatedValues);
-    }
-
-    private static List<FxmlElement> createChildren(Element element) {
-        NodeList childNodes = element.getChildNodes();
-        int childrenLength = childNodes.getLength();
-
-        List<FxmlElement> children = new ArrayList<>();
-        for (int i = 0; i < childrenLength; i++) {
-            Node item = childNodes.item(i);
-            if (item instanceof Element childElement) {
-                children.add(createFxmlElement(childElement));
-            }
-        }
-        return children;
+        return new Value.Multi(values);
     }
 
     private static List<FxmlAttribute> createAttributes(Element element) {
@@ -138,8 +124,22 @@ public class FxmlParser {
         int attrLength = attributesNodeMap.getLength();
         return IntStream.range(0, attrLength)
                         .mapToObj(attributesNodeMap::item)
-                        .filter(item -> !item.getNodeName().startsWith("xmlns"))
+                        .filter(Attr.class::isInstance)
+                        .map(Attr.class::cast)
+                        .filter(attr -> !attr.getNodeName().startsWith("xmlns"))
                         .map(FxmlParser::createFxmlAttribute)
+                        .toList();
+    }
+
+    private static List<FxmlElement> createChildren(Element element) {
+        NodeList childNodes = element.getChildNodes();
+        int childrenLength = childNodes.getLength();
+
+        return IntStream.range(0, childrenLength)
+                        .mapToObj(childNodes::item)
+                        .filter(Element.class::isInstance)
+                        .map(Element.class::cast)
+                        .map(FxmlParser::createFxmlElement)
                         .toList();
     }
 
@@ -239,18 +239,18 @@ public class FxmlParser {
         return new IncludeElement(source, resources, charset, createContent(element));
     }
 
-    private static FxmlAttribute createFxmlAttribute(Node node) {
-        return switch (node.getNodeName()) {
-            case "fx:id" -> new IdAttribute(node.getNodeValue());
-            case "fx:controller" -> new ControllerAttribute(node.getNodeValue());
+    private static FxmlAttribute createFxmlAttribute(Attr attr) {
+        return switch (attr.getName()) {
+            case "fx:id" -> new IdAttribute(attr.getValue());
+            case "fx:controller" -> new ControllerAttribute(attr.getValue());
             case String name when name.startsWith("on") ->
-                    new EventHandlerAttribute(name, createEventHandler(node.getNodeValue()));
+                    new EventHandlerAttribute(name, createEventHandler(attr.getValue()));
             case String name when name.matches("(\\w*\\.)*[A-Z]\\w*\\.[a-z]\\w*") -> {
                 int separatorIndex = name.lastIndexOf('.');
                 yield new StaticPropertyAttribute(name.substring(0, separatorIndex), name.substring(separatorIndex + 1),
-                                                  createPropertyValue(node.getNodeValue()));
+                                                  createPropertyValue(attr.getValue()));
             }
-            case String name -> new InstancePropertyAttribute(name, createPropertyValue(node.getNodeValue()));
+            case String name -> new InstancePropertyAttribute(name, createPropertyValue(attr.getValue()));
         };
     }
 
@@ -268,9 +268,10 @@ public class FxmlParser {
 
     private static Value.Handler createEventHandler(String value) {
         return switch (value) {
-            case String val when val.startsWith("#") -> new Value.Handler.Method(val.substring(1));
-            case String val when val.startsWith("$") -> new Value.Handler.Reference(val.substring(1));
-            case String val -> new Value.Handler.Script(val);
+            case String val when val.startsWith("#") -> new Value.Method(val.substring(1));
+            case String val when val.startsWith("$") -> new Value.Reference(val.substring(1));
+            case String val when val.isBlank() -> new Value.Empty();
+            case String val -> new Value.Script(val);
         };
     }
 
