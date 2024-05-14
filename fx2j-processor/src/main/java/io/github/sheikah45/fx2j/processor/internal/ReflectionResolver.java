@@ -199,10 +199,15 @@ public class ReflectionResolver {
         };
     }
 
-    public Class<?>[] resolveLowerBoundTypeArguments(ParameterizedType parameterizedType) {
-        return Arrays.stream(parameterizedType.getActualTypeArguments())
-                     .map(this::resolveTypeLowerBound)
-                     .toArray(Class[]::new);
+    public Class<?>[] resolveLowerBoundTypeArguments(Type type) {
+        if (type instanceof ParameterizedType parameterizedType) {
+            return Arrays.stream(parameterizedType.getActualTypeArguments())
+                         .map(this::resolveTypeLowerBound)
+                         .toArray(Class[]::new);
+        } else {
+            return null;
+        }
+
     }
 
     public Class<?> resolveTypeLowerBound(Type type) {

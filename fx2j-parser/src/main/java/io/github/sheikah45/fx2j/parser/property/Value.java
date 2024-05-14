@@ -8,26 +8,16 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
 
-sealed public interface Value permits Value.Handler, Value.Multi, Value.Single {
+sealed public interface Value {
 
-
-    sealed interface Single extends Value {}
-
-    sealed interface Handler extends Value {}
     record Multi(List<? extends Value.Single> values) implements Value {
         public Multi {
             Objects.requireNonNull(values, "values cannot be null");
             values = List.copyOf(values);
         }
     }
-    record Empty() implements Single, Handler {}
-    record Expression(String value) implements Single {
-        public Expression {
-            if (StringUtils.isNullOrBlank(value)) {
-                throw new IllegalArgumentException("value cannot be blank or null");
-            }
-        }
-    }
+
+    sealed interface Single extends Value {}
     record Literal(String value) implements Single {
         public Literal {
             if (StringUtils.isNullOrBlank(value)) {
@@ -35,6 +25,7 @@ sealed public interface Value permits Value.Handler, Value.Multi, Value.Single {
             }
         }
     }
+    sealed interface Handler extends Value {}
     record Location(Path value) implements Single {
         public Location {
             Objects.requireNonNull(value, "location cannot be null");
@@ -56,6 +47,13 @@ sealed public interface Value permits Value.Handler, Value.Multi, Value.Single {
     }
     record Element(FxmlElement value) implements Value.Single {}
     record Attribute(FxmlAttribute.CommonAttribute value) implements Value.Single {}
+    record Expression(String value) implements Single {
+        public Expression {
+            if (StringUtils.isNullOrBlank(value)) {
+                throw new IllegalArgumentException("value cannot be blank or null");
+            }
+        }
+    }
     record Script(String value) implements Handler {
         public Script {
             if (StringUtils.isNullOrBlank(value)) {
@@ -70,4 +68,5 @@ sealed public interface Value permits Value.Handler, Value.Multi, Value.Single {
             }
         }
     }
+    record Empty() implements Single, Handler {}
 }
