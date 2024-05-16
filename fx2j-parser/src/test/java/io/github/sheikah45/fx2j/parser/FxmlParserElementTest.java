@@ -1,6 +1,7 @@
 package io.github.sheikah45.fx2j.parser;
 
 import io.github.sheikah45.fx2j.parser.attribute.InstancePropertyAttribute;
+import io.github.sheikah45.fx2j.parser.attribute.NameSpaceAttribute;
 import io.github.sheikah45.fx2j.parser.element.ClassInstanceElement;
 import io.github.sheikah45.fx2j.parser.element.ConstantElement;
 import io.github.sheikah45.fx2j.parser.element.CopyElement;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
@@ -32,7 +34,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 @Execution(ExecutionMode.CONCURRENT)
 public class FxmlParserElementTest {
 
-    public static final ClassInstanceElement.Content EMPTY_CONTENT = new ClassInstanceElement.Content(List.of(),
+    private static final NameSpaceAttribute NAME_SPACE_ATTRIBUTE = new NameSpaceAttribute("fx", URI.create(
+            "http://javafx.com/fxml"));
+    private static final ClassInstanceElement.Content NAME_SPACE_ONLY_CONTENT = new ClassInstanceElement.Content(
+            List.of(NAME_SPACE_ATTRIBUTE),
+            List.of(),
+            new Value.Empty());
+    private static final ClassInstanceElement.Content EMPTY_CONTENT = new ClassInstanceElement.Content(List.of(),
                                                                                                       List.of(),
                                                                                                       new Value.Empty());
     private static final Path FXML_ROOT = Path.of("src/test/resources/element/valid");
@@ -63,7 +71,8 @@ public class FxmlParserElementTest {
         assertEquals(2, children.size());
 
         FxmlElement first = children.getFirst();
-        assertEquals(new IncludeElement(Path.of("included1.fxml"), null, StandardCharsets.UTF_8, EMPTY_CONTENT),
+        assertEquals(new IncludeElement(Path.of("included1.fxml"), null, StandardCharsets.UTF_8,
+                                        EMPTY_CONTENT),
                      first);
 
         FxmlElement last = children.getLast();
@@ -160,7 +169,7 @@ public class FxmlParserElementTest {
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
-        assertEquals(new InstanceElement("VBox", new ClassInstanceElement.Content(List.of(),
+        assertEquals(new InstanceElement("VBox", new ClassInstanceElement.Content(List.of(NAME_SPACE_ATTRIBUTE),
                                                                                   List.of(new InstancePropertyElement(
                                                                                           "alignment",
                                                                                           new Value.Literal(
@@ -174,7 +183,8 @@ public class FxmlParserElementTest {
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
-        assertEquals(new InstanceElement("Label", new ClassInstanceElement.Content(List.of(), List.of(),
+        assertEquals(
+                new InstanceElement("Label", new ClassInstanceElement.Content(List.of(NAME_SPACE_ATTRIBUTE), List.of(),
                                                                                    new Value.Literal("test"))),
                      rootNode);
     }
@@ -185,7 +195,7 @@ public class FxmlParserElementTest {
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
-        assertEquals(new InstanceElement("Label", new ClassInstanceElement.Content(List.of(),
+        assertEquals(new InstanceElement("Label", new ClassInstanceElement.Content(List.of(NAME_SPACE_ATTRIBUTE),
                                                                                    List.of(new InstancePropertyElement(
                                                                                            "alignment",
                                                                                            new Value.Literal(
@@ -200,7 +210,7 @@ public class FxmlParserElementTest {
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
-        assertEquals(new InstanceElement("VBox", new ClassInstanceElement.Content(List.of(),
+        assertEquals(new InstanceElement("VBox", new ClassInstanceElement.Content(List.of(NAME_SPACE_ATTRIBUTE),
                                                                                   List.of(new InstancePropertyElement(
                                                                                           "properties",
                                                                                           new Value.Attribute(
@@ -218,7 +228,7 @@ public class FxmlParserElementTest {
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
-        assertEquals(new InstanceElement("VBox", new ClassInstanceElement.Content(List.of(),
+        assertEquals(new InstanceElement("VBox", new ClassInstanceElement.Content(List.of(NAME_SPACE_ATTRIBUTE),
                                                                                   List.of(new InstancePropertyElement(
                                                                                           "children",
                                                                                           new Value.Element(
@@ -234,7 +244,7 @@ public class FxmlParserElementTest {
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
-        assertEquals(new InstanceElement("VBox", new ClassInstanceElement.Content(List.of(),
+        assertEquals(new InstanceElement("VBox", new ClassInstanceElement.Content(List.of(NAME_SPACE_ATTRIBUTE),
                                                                                   List.of(new InstancePropertyElement(
                                                                                           "alignment",
                                                                                           new Value.Multi(
@@ -258,7 +268,7 @@ public class FxmlParserElementTest {
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
-        assertEquals(new InstanceElement("VBox", new ClassInstanceElement.Content(List.of(),
+        assertEquals(new InstanceElement("VBox", new ClassInstanceElement.Content(List.of(NAME_SPACE_ATTRIBUTE),
                                                                                   List.of(new InstancePropertyElement(
                                                                                           "alignment",
                                                                                           new Value.Empty())),
@@ -272,7 +282,7 @@ public class FxmlParserElementTest {
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
-        assertEquals(new InstanceElement("VBox", new ClassInstanceElement.Content(List.of(),
+        assertEquals(new InstanceElement("VBox", new ClassInstanceElement.Content(List.of(NAME_SPACE_ATTRIBUTE),
                                                                                   List.of(new StaticPropertyElement(
                                                                                           "GridPane", "alignment",
                                                                                           new Value.Literal(
@@ -286,7 +296,7 @@ public class FxmlParserElementTest {
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
-        assertEquals(new InstanceElement("VBox", new ClassInstanceElement.Content(List.of(),
+        assertEquals(new InstanceElement("VBox", new ClassInstanceElement.Content(List.of(NAME_SPACE_ATTRIBUTE),
                                                                                   List.of(new StaticPropertyElement(
                                                                                           "javafx.scene.layout.GridPane",
                                                                                           "alignment",
@@ -301,7 +311,7 @@ public class FxmlParserElementTest {
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
-        assertEquals(new RootElement("javafx.scene.layout.VBox", EMPTY_CONTENT), rootNode);
+        assertEquals(new RootElement("javafx.scene.layout.VBox", NAME_SPACE_ONLY_CONTENT), rootNode);
     }
 
     @Test
@@ -310,7 +320,7 @@ public class FxmlParserElementTest {
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
-        assertEquals(new ValueElement("Double", new Value.Literal("1"), EMPTY_CONTENT), rootNode);
+        assertEquals(new ValueElement("Double", new Value.Literal("1"), NAME_SPACE_ONLY_CONTENT), rootNode);
     }
 
     @Test
@@ -319,7 +329,7 @@ public class FxmlParserElementTest {
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
-        assertEquals(new ConstantElement("Double", "NEGATIVE_INFINITY", EMPTY_CONTENT), rootNode);
+        assertEquals(new ConstantElement("Double", "NEGATIVE_INFINITY", NAME_SPACE_ONLY_CONTENT), rootNode);
     }
 
     @Test
@@ -328,6 +338,6 @@ public class FxmlParserElementTest {
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
-        assertEquals(new FactoryElement("List", "of", EMPTY_CONTENT), rootNode);
+        assertEquals(new FactoryElement("List", "of", NAME_SPACE_ONLY_CONTENT), rootNode);
     }
 }

@@ -124,7 +124,7 @@ public class ObjectNodeProcessor {
                 case InstancePropertyAttribute instance -> instanceProperties.put(instance.property(), instance);
                 case StaticPropertyAttribute staticProperty -> staticProperties.add(staticProperty);
                 case EventHandlerAttribute handler -> handlerProperties.add(handler);
-                case FxmlAttribute.FxAttribute ignored -> {}
+                case FxmlAttribute.SpecialAttribute ignored -> {}
             }
         });
 
