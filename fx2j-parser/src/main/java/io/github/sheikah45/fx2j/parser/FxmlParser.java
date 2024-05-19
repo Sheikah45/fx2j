@@ -69,6 +69,16 @@ public class FxmlParser {
         }
     }
 
+    private static ClassInstanceElement.Content createContent(Element element) {
+        List<FxmlAttribute> attributes = createAttributes(element);
+        List<FxmlElement> children = createChildren(element);
+        return new ClassInstanceElement.Content(attributes, children, retrieveInnerValue(element));
+    }
+
+    private static Value.Single retrieveInnerValue(Element element) {
+        return createPropertyValue(retrieveInnerText(element));
+    }
+
     private static String retrieveInnerText(Element element) {
         NodeList childNodes = element.getChildNodes();
         int childrenLength = childNodes.getLength();
@@ -84,13 +94,6 @@ public class FxmlParser {
                         .map(text -> text.replaceAll("\\s+", " ").strip())
                         .findFirst()
                         .orElse("");
-    }
-
-    private static ClassInstanceElement.Content createContent(Element element) {
-        List<FxmlAttribute> attributes = createAttributes(element);
-        List<FxmlElement> children = createChildren(element);
-        String text = retrieveInnerText(element);
-        return new ClassInstanceElement.Content(attributes, children, createPropertyValue(text));
     }
 
     private static Value createPropertyValue(Element element) {
@@ -109,7 +112,7 @@ public class FxmlParser {
                 .map(Concrete.Element::new)
                 .forEach(values::add);
 
-        Value.Single innerValue = createPropertyValue(retrieveInnerText(element));
+        Value.Single innerValue = retrieveInnerValue(element);
         if (!(innerValue instanceof Concrete.Empty)) {
             values.add(innerValue);
         }
