@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.stream.Stream;
 
 @Execution(ExecutionMode.CONCURRENT)
-public abstract class AbstractProcessorTest {
+abstract class AbstractProcessorTest {
 
 
     protected static final String ROOT_PACKAGE = "test";

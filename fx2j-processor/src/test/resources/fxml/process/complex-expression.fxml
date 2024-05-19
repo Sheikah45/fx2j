@@ -1,0 +1,5 @@
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.layout.AnchorPane?>
+<AnchorPane xmlns:fx="javafx">
+    <Button fx:id="button" minWidth="${button.prefWidth * 2 - 10 + button.prefHeight}"/>
+</AnchorPane>

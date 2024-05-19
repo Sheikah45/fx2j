@@ -10,60 +10,60 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 
 @Execution(ExecutionMode.CONCURRENT)
-public class FxmlParserInvalidElementTest {
+class FxmlParserInvalidElementTest {
 
     private static final Path FXML_ROOT = Path.of("src/test/resources/element/invalid");
 
     @Test
-    public void testEmptyImport() {
+    void testEmptyImport() {
         Path filePath = FXML_ROOT.resolve("empty-import.fxml");
         assertThrows(ParseException.class, () -> FxmlParser.readFxml(filePath));
     }
 
     @Test
-    public void testEmptyLanguage() {
+    void testEmptyLanguage() {
         Path filePath = FXML_ROOT.resolve("empty-language.fxml");
         assertThrows(ParseException.class, () -> FxmlParser.readFxml(filePath));
     }
 
     @Test
-    public void testNonDeclaration() {
+    void testNonDeclaration() {
         Path filePath = FXML_ROOT.resolve("non-declaration-root.fxml");
         assertThrows(ParseException.class, () -> FxmlParser.readFxml(filePath));
     }
 
     @Test
-    public void testMultiDeclaration() {
+    void testMultiDeclaration() {
         Path filePath = FXML_ROOT.resolve("multi-declaration.fxml");
         assertThrows(ParseException.class, () -> FxmlParser.readFxml(filePath));
     }
 
     @Test
-    public void testNonCommonPropertyValue() {
+    void testNonCommonPropertyValue() {
         Path filePath = FXML_ROOT.resolve("property-non-common-attribute.fxml");
         assertThrows(ParseException.class, () -> FxmlParser.readFxml(filePath));
     }
 
     @Test
-    public void testInclude() {
+    void testInclude() {
         Path filePath = FXML_ROOT.resolve("include.fxml");
         assertThrows(ParseException.class, () -> FxmlParser.readFxml(filePath));
     }
 
     @Test
-    public void testReference() {
+    void testReference() {
         Path filePath = FXML_ROOT.resolve("reference.fxml");
         assertThrows(ParseException.class, () -> FxmlParser.readFxml(filePath));
     }
 
     @Test
-    public void testCopy() {
+    void testCopy() {
         Path filePath = FXML_ROOT.resolve("copy.fxml");
         assertThrows(ParseException.class, () -> FxmlParser.readFxml(filePath));
     }
 
     @Test
-    public void testDefine() {
+    void testDefine() {
         Path filePath = FXML_ROOT.resolve("define.fxml");
         assertThrows(ParseException.class, () -> FxmlParser.readFxml(filePath));
     }

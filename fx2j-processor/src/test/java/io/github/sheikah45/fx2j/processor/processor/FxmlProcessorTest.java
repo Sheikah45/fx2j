@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.PropertyResourceBundle;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -30,13 +31,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class FxmlProcessorTest extends AbstractProcessorTest {
+class FxmlProcessorTest extends AbstractProcessorTest {
 
     private static final Path PROCESS_FXML = RESOURCES_ROOT.resolve("fxml/process");
 
     @Test
-    public void testRootOnly() throws Exception {
+    void testRootOnly() throws Exception {
         AnchorPane root = buildAndRetrieveRoot(PROCESS_FXML.resolve("simple-root.fxml"));
         assertNotNull(root);
     }
@@ -54,7 +56,7 @@ public class FxmlProcessorTest extends AbstractProcessorTest {
     }
 
     @Test
-    public void testStaticProperties() throws Exception {
+    void testStaticProperties() throws Exception {
         AnchorPane root = buildAndRetrieveRoot(PROCESS_FXML.resolve("static-property.fxml"));
         assertNotNull(root);
         assertEquals(1, GridPane.getColumnIndex(root));
@@ -62,7 +64,7 @@ public class FxmlProcessorTest extends AbstractProcessorTest {
     }
 
     @Test
-    public void testEnumStaticProperties() throws Exception {
+    void testEnumStaticProperties() throws Exception {
         AnchorPane root = buildAndRetrieveRoot(PROCESS_FXML.resolve("enum-static-property.fxml"));
         assertNotNull(root);
         assertEquals(HPos.CENTER, GridPane.getHalignment(root));
@@ -70,14 +72,14 @@ public class FxmlProcessorTest extends AbstractProcessorTest {
     }
 
     @Test
-    public void testFullyQualifiedNames() throws Exception {
+    void testFullyQualifiedNames() throws Exception {
         AnchorPane root = buildAndRetrieveRoot(PROCESS_FXML.resolve("fully-qualified-nodes.fxml"));
         assertNotNull(root);
         assertEquals(1, root.getChildren().size());
     }
 
     @Test
-    public void testListProperties() throws Exception {
+    void testListProperties() throws Exception {
         AnchorPane root = buildAndRetrieveRoot(PROCESS_FXML.resolve("list-property.fxml"));
         List<Node> children = root.getChildren();
         assertEquals(3, children.size());
@@ -85,61 +87,61 @@ public class FxmlProcessorTest extends AbstractProcessorTest {
     }
 
     @Test
-    public void testDefaultProperties() throws Exception {
+    void testDefaultProperties() throws Exception {
         AnchorPane root = buildAndRetrieveRoot(PROCESS_FXML.resolve("default-property.fxml"));
         List<Node> children = root.getChildren();
         assertEquals(1, children.size());
-        Button button = (Button) children.get(0);
+        Button button = (Button) children.getFirst();
 
         assertEquals("test test", button.getText());
     }
 
     @Test
-    public void testPropertyInnerText() throws Exception {
+    void testPropertyInnerText() throws Exception {
         AnchorPane root = buildAndRetrieveRoot(PROCESS_FXML.resolve("property-inner-text.fxml"));
         List<Node> children = root.getChildren();
         assertEquals(1, children.size());
-        Button button = (Button) children.get(0);
+        Button button = (Button) children.getFirst();
 
         assertEquals("test", button.getText());
     }
 
     @Test
-    public void testPropertyAttribute() throws Exception {
+    void testPropertyAttribute() throws Exception {
         AnchorPane root = buildAndRetrieveRoot(PROCESS_FXML.resolve("attribute-property.fxml"));
         List<Node> children = root.getChildren();
         assertEquals(1, children.size());
-        Button button = (Button) children.get(0);
+        Button button = (Button) children.getFirst();
 
         assertEquals("test", button.getText());
     }
 
     @Test
-    public void testPropertiesMap() throws Exception {
+    void testPropertiesMap() throws Exception {
         AnchorPane root = buildAndRetrieveRoot(PROCESS_FXML.resolve("map-property.fxml"));
         assertEquals(Map.of("test1", "t1", "test2", "123"), root.getProperties());
     }
 
     @Test
-    public void testBasicMap() throws Exception {
+    void testBasicMap() throws Exception {
         Map<Object, Object> root = buildAndRetrieveRoot(PROCESS_FXML.resolve("basic-map.fxml"));
         assertEquals(Map.of("key1", "val1", "key2", "val2", "key3", 3), root);
     }
 
     @Test
-    public void testBasicList() throws Exception {
+    void testBasicList() throws Exception {
         List<Object> root = buildAndRetrieveRoot(PROCESS_FXML.resolve("basic-list.fxml"));
         assertEquals(List.of("item1", 2), root);
     }
 
     @Test
-    public void testInferredMap() throws Exception {
+    void testInferredMap() throws Exception {
         Map<Object, Object> root = buildAndRetrieveRoot(PROCESS_FXML.resolve("inferred-map.fxml"));
         assertEquals(Map.of("key1", 1, "key2", 2, "key3", 3), root);
     }
 
     @Test
-    public void testNestedClassDirect() throws Exception {
+    void testNestedClassDirect() throws Exception {
         SpinnerValueFactory.IntegerSpinnerValueFactory root = buildAndRetrieveRoot(
                 PROCESS_FXML.resolve("nested-class-direct.fxml"));
         assertNotNull(root);
@@ -148,7 +150,7 @@ public class FxmlProcessorTest extends AbstractProcessorTest {
     }
 
     @Test
-    public void testNestedClassStar() throws Exception {
+    void testNestedClassStar() throws Exception {
         SpinnerValueFactory.IntegerSpinnerValueFactory root = buildAndRetrieveRoot(
                 PROCESS_FXML.resolve("nested-class-star-import.fxml"));
         assertNotNull(root);
@@ -157,49 +159,49 @@ public class FxmlProcessorTest extends AbstractProcessorTest {
     }
 
     @Test
-    public void testGenericTypeVariable() throws Exception {
+    void testGenericTypeVariable() throws Exception {
         TableView<Object> root = buildAndRetrieveRoot(PROCESS_FXML.resolve("generic-with-type-variable.fxml"));
         assertNotNull(root);
         assertEquals(1, root.getColumns().size());
     }
 
     @Test
-    public void testInclude() throws Exception {
+    void testInclude() throws Exception {
         SplitPane root = buildAndRetrieveRoot(PROCESS_FXML.resolve("include.fxml"),
                                               PROCESS_FXML.resolve("simple-root.fxml"));
         assertNotNull(root);
         assertEquals(1, root.getItems().size());
-        assertEquals(AnchorPane.class, root.getItems().get(0).getClass());
+        assertEquals(AnchorPane.class, root.getItems().getFirst().getClass());
     }
 
     @Test
-    public void testConstant() throws Exception {
+    void testConstant() throws Exception {
         int root = buildAndRetrieveRoot(PROCESS_FXML.resolve("constant.fxml"));
         assertEquals(Double.MAX_EXPONENT, root);
     }
 
     @Test
-    public void testCopy() throws Exception {
+    void testCopy() throws Exception {
         List<CopyObject> root = buildAndRetrieveRoot(PROCESS_FXML.resolve("copy.fxml"));
         assertEquals(2, root.size());
         assertNotSame(root.get(0), root.get(1));
     }
 
     @Test
-    public void testReference() throws Exception {
+    void testReference() throws Exception {
         List<CopyObject> root = buildAndRetrieveRoot(PROCESS_FXML.resolve("reference.fxml"));
         assertEquals(2, root.size());
         assertSame(root.get(0), root.get(1));
     }
 
     @Test
-    public void testFactory() throws Exception {
+    void testFactory() throws Exception {
         ObservableList<Object> root = buildAndRetrieveRoot(PROCESS_FXML.resolve("factory.fxml"));
         assertNotNull(root);
     }
 
     @Test
-    public void testArray() throws Exception {
+    void testArray() throws Exception {
         SplitPane root = buildAndRetrieveRoot(PROCESS_FXML.resolve("array.fxml"));
         root.getItems().add(new Pane());
         root.getItems().add(new Pane());
@@ -211,7 +213,7 @@ public class FxmlProcessorTest extends AbstractProcessorTest {
     }
 
     @Test
-    public void testValue() throws Exception {
+    void testValue() throws Exception {
         List<Object> root = buildAndRetrieveRoot(PROCESS_FXML.resolve("value.fxml"));
         assertNotNull(root);
         assertEquals(9, root.size());
@@ -227,37 +229,37 @@ public class FxmlProcessorTest extends AbstractProcessorTest {
     }
 
     @Test
-    public void testDefineBefore() throws Exception {
+    void testDefineBefore() throws Exception {
         List<CopyObject> root = buildAndRetrieveRoot(PROCESS_FXML.resolve("define-before.fxml"));
         assertEquals(1, root.size());
     }
 
     @Test
-    public void testDefineAfter() throws Exception {
+    void testDefineAfter() throws Exception {
         List<CopyObject> root = buildAndRetrieveRoot(PROCESS_FXML.resolve("define-after.fxml"));
         assertEquals(1, root.size());
     }
 
     @Test
-    public void testVariable() throws Exception {
+    void testVariable() throws Exception {
         Label root = buildAndRetrieveRoot(PROCESS_FXML.resolve("variable.fxml"));
         assertEquals("hello", root.getText());
     }
 
     @Test
-    public void testEscapeVariable() throws Exception {
+    void testEscapeVariable() throws Exception {
         Label root = buildAndRetrieveRoot(PROCESS_FXML.resolve("escape-variable.fxml"));
         assertEquals("$obj", root.getText());
     }
 
     @Test
-    public void testEscapeResources() throws Exception {
+    void testEscapeResources() throws Exception {
         Label root = buildAndRetrieveRoot(PROCESS_FXML.resolve("escape-resources.fxml"));
         assertEquals("%obj", root.getText());
     }
 
     @Test
-    public void testProvidedRoot() throws Exception {
+    void testProvidedRoot() throws Exception {
         ArrayList<Double> providedRoot = new ArrayList<>();
         FxmlProcessor mainBuilderJavaFile = new FxmlProcessor(PROCESS_FXML.resolve("provided-root.fxml"),
                                                               RESOURCES_ROOT,
@@ -268,19 +270,57 @@ public class FxmlProcessorTest extends AbstractProcessorTest {
         ArrayList<Double> root = fx2jBuilder.getRoot();
         assertSame(providedRoot, root);
         assertEquals(1, providedRoot.size());
-        assertEquals(1d, providedRoot.get(0));
+        assertEquals(1d, providedRoot.getFirst());
     }
 
     @Test
-    public void testResources() throws Exception {
+    void testResources() throws Exception {
         FxmlProcessor mainBuilderJavaFile = new FxmlProcessor(PROCESS_FXML.resolve("resources.fxml"), RESOURCES_ROOT,
                                                               ROOT_PACKAGE, classLoader
         );
         Fx2jBuilder<Object, Label> fx2jBuilder = compileAndLoadBuilder(mainBuilderJavaFile);
         fx2jBuilder.build(null, null, new PropertyResourceBundle(
-                FxmlProcessorTest.class.getResource("/message.properties").openStream()), null);
+                Objects.requireNonNull(FxmlProcessorTest.class.getResource("/message.properties")).openStream()), null);
         Label root = fx2jBuilder.getRoot();
         assertEquals("hello", root.getText());
+    }
+
+    @Test
+    void testSimpleExpression() throws Exception {
+        FxmlProcessor mainBuilderJavaFile = new FxmlProcessor(PROCESS_FXML.resolve("simple-expression.fxml"),
+                                                              RESOURCES_ROOT,
+                                                              ROOT_PACKAGE, classLoader
+        );
+        Fx2jBuilder<Object, AnchorPane> fx2jBuilder = compileAndLoadBuilder(mainBuilderJavaFile);
+        fx2jBuilder.build(null, null, new PropertyResourceBundle(
+                Objects.requireNonNull(FxmlProcessorTest.class.getResource("/message.properties")).openStream()), null);
+        AnchorPane root = fx2jBuilder.getRoot();
+        assertEquals(2, root.getChildren().size());
+
+        Label label = (Label) root.getChildren().getFirst();
+        Button button = (Button) root.getChildren().getLast();
+        assertTrue(button.textProperty().isBound());
+        label.setText("hello");
+        assertEquals(label.getText(), button.getText());
+    }
+
+    @Test
+    void testComplexExpression() throws Exception {
+        FxmlProcessor mainBuilderJavaFile = new FxmlProcessor(PROCESS_FXML.resolve("complex-expression.fxml"),
+                                                              RESOURCES_ROOT,
+                                                              ROOT_PACKAGE, classLoader
+        );
+        Fx2jBuilder<Object, AnchorPane> fx2jBuilder = compileAndLoadBuilder(mainBuilderJavaFile);
+        fx2jBuilder.build(null, null, new PropertyResourceBundle(
+                Objects.requireNonNull(FxmlProcessorTest.class.getResource("/message.properties")).openStream()), null);
+        AnchorPane root = fx2jBuilder.getRoot();
+        assertEquals(1, root.getChildren().size());
+
+        Button button = (Button) root.getChildren().getFirst();
+        assertTrue(button.minWidthProperty().isBound());
+        button.setPrefWidth(10);
+        button.setPrefHeight(2);
+        assertEquals(12, button.getMinWidth());
     }
 
 }

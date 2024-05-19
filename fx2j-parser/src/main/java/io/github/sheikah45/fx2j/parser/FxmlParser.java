@@ -1,9 +1,7 @@
 package io.github.sheikah45.fx2j.parser;
 
-import io.github.sheikah45.fx2j.parser.antlr.BindExpressionLexer;
-import io.github.sheikah45.fx2j.parser.antlr.BindExpressionParser;
-import io.github.sheikah45.fx2j.parser.antlr.BindExpressionVisitorImpl;
 import io.github.sheikah45.fx2j.parser.attribute.ControllerAttribute;
+import io.github.sheikah45.fx2j.parser.attribute.DefaultNameSpaceAttribute;
 import io.github.sheikah45.fx2j.parser.attribute.EventHandlerAttribute;
 import io.github.sheikah45.fx2j.parser.attribute.FxmlAttribute;
 import io.github.sheikah45.fx2j.parser.attribute.IdAttribute;
@@ -26,11 +24,11 @@ import io.github.sheikah45.fx2j.parser.element.ScriptElement;
 import io.github.sheikah45.fx2j.parser.element.ScriptSource;
 import io.github.sheikah45.fx2j.parser.element.StaticPropertyElement;
 import io.github.sheikah45.fx2j.parser.element.ValueElement;
+import io.github.sheikah45.fx2j.parser.property.Concrete;
+import io.github.sheikah45.fx2j.parser.property.Expression;
+import io.github.sheikah45.fx2j.parser.property.Handler;
 import io.github.sheikah45.fx2j.parser.property.Value;
 import io.github.sheikah45.fx2j.parser.utils.StringUtils;
-import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.CodePointCharStream;
-import org.antlr.v4.runtime.CommonTokenStream;
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -104,20 +102,20 @@ public class FxmlParser {
             }
 
             return commonAttribute;
-        }).map(io.github.sheikah45.fx2j.parser.property.Value.Attribute::new).forEach(values::add);
+        }).map(Concrete.Attribute::new).forEach(values::add);
 
         createChildren(element)
                 .stream()
-                .map(io.github.sheikah45.fx2j.parser.property.Value.Element::new)
+                .map(Concrete.Element::new)
                 .forEach(values::add);
 
         Value.Single innerValue = createPropertyValue(retrieveInnerText(element));
-        if (!(innerValue instanceof Value.Empty)) {
+        if (!(innerValue instanceof Concrete.Empty)) {
             values.add(innerValue);
         }
 
         if (values.isEmpty()) {
-            return new Value.Empty();
+            return new Concrete.Empty();
         }
 
         if (values.size() == 1) {
@@ -248,22 +246,14 @@ public class FxmlParser {
 
     private static Value.Single createPropertyValue(String value) {
         return switch (value) {
-            case String val when val.startsWith("@") -> new Value.Location(Path.of(val.substring(1)));
-            case String val when val.startsWith("%") -> new Value.Resource(val.substring(1));
-            case String val when val.matches("\\$\\{.*}") -> createExpressionValue(val);
-            case String val when val.startsWith("$") -> new Value.Reference(val.substring(1));
-            case String val when val.startsWith("\\") -> new Value.Literal(val.substring(1));
-            case String val when val.isBlank() -> new Value.Empty();
-            case String val -> new Value.Literal(val);
+            case String val when val.startsWith("@") -> new Concrete.Location(Path.of(val.substring(1)));
+            case String val when val.startsWith("%") -> new Concrete.Resource(val.substring(1));
+            case String val when val.matches("\\$\\{.*}") -> Expression.parse(val.substring(2, val.length() - 1));
+            case String val when val.startsWith("$") -> new Concrete.Reference(val.substring(1));
+            case String val when val.startsWith("\\") -> new Concrete.Literal(val.substring(1));
+            case String val when val.isBlank() -> new Concrete.Empty();
+            case String val -> new Concrete.Literal(val);
         };
-    }
-
-    private static Value.Expression createExpressionValue(String val) {
-        CodePointCharStream charStream = CharStreams.fromString(val.substring(2, val.length() - 1));
-        BindExpressionLexer expressionLexer = new BindExpressionLexer(charStream);
-        CommonTokenStream commonTokenStream = new CommonTokenStream(expressionLexer);
-        BindExpressionParser expressionParser = new BindExpressionParser(commonTokenStream);
-        return expressionParser.expression().accept(new BindExpressionVisitorImpl());
     }
 
     private static FxmlAttribute createFxmlAttribute(Attr attr) {
@@ -272,6 +262,8 @@ public class FxmlParser {
             case "fx:controller" -> new ControllerAttribute(attr.getValue());
             case String name when name.startsWith("xmlns:") ->
                     new NameSpaceAttribute(name.substring(6), URI.create(attr.getValue()));
+            case String name when name.startsWith("xmlns") ->
+                    new DefaultNameSpaceAttribute(URI.create(attr.getValue()));
             case String name when name.startsWith("on") ->
                     new EventHandlerAttribute(name, createEventHandler(attr.getValue()));
             case String name when name.matches("(\\w*\\.)*[A-Z]\\w*\\.[a-z]\\w*") -> {
@@ -283,12 +275,12 @@ public class FxmlParser {
         };
     }
 
-    private static Value.Handler createEventHandler(String value) {
+    private static Handler createEventHandler(String value) {
         return switch (value) {
-            case String val when val.startsWith("#") -> new Value.Method(val.substring(1));
-            case String val when val.startsWith("$") -> new Value.Reference(val.substring(1));
-            case String val when val.isBlank() -> new Value.Empty();
-            case String val -> new Value.Script(val);
+            case String val when val.startsWith("#") -> new Handler.Method(val.substring(1));
+            case String val when val.startsWith("$") -> new Handler.Reference(val.substring(1));
+            case String val when val.isBlank() -> new Handler.Empty();
+            case String val -> new Handler.Script(val);
         };
     }
 

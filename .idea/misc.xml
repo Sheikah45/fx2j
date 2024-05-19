@@ -4,9 +4,8 @@
     <option name="perGrammarGenerationSettings">
       <list>
         <PerGrammarGenerationSettings>
-          <option name="fileName" value="$PROJECT_DIR$/fx2j-parser/src/main/antlr4/io/github/sheikah45/fx2j/parser/expression/FXMLExpression.g4" />
+          <option name="fileName" value="$PROJECT_DIR$/fx2j-parser/src/main/antlr4/io/github/sheikah45/fx2j/parser/expression/BindExpression.g4" />
           <option name="autoGen" value="true" />
-          <option name="outputDir" value="C:\Users\corey\FAFProjects\fx2j\fx2j-parser\src\main\java\io\github\sheikah45\fx2j\parser\antlr" />
           <option name="libDir" value="" />
           <option name="encoding" value="" />
           <option name="pkg" value="" />

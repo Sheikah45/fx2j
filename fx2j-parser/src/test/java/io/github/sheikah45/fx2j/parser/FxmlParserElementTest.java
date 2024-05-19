@@ -18,6 +18,7 @@ import io.github.sheikah45.fx2j.parser.element.ScriptElement;
 import io.github.sheikah45.fx2j.parser.element.ScriptSource;
 import io.github.sheikah45.fx2j.parser.element.StaticPropertyElement;
 import io.github.sheikah45.fx2j.parser.element.ValueElement;
+import io.github.sheikah45.fx2j.parser.property.Concrete;
 import io.github.sheikah45.fx2j.parser.property.Value;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
@@ -32,21 +33,21 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 
 @Execution(ExecutionMode.CONCURRENT)
-public class FxmlParserElementTest {
+class FxmlParserElementTest {
 
     private static final NameSpaceAttribute NAME_SPACE_ATTRIBUTE = new NameSpaceAttribute("fx", URI.create(
             "http://javafx.com/fxml"));
     private static final ClassInstanceElement.Content NAME_SPACE_ONLY_CONTENT = new ClassInstanceElement.Content(
             List.of(NAME_SPACE_ATTRIBUTE),
             List.of(),
-            new Value.Empty());
+            new Concrete.Empty());
     private static final ClassInstanceElement.Content EMPTY_CONTENT = new ClassInstanceElement.Content(List.of(),
                                                                                                       List.of(),
-                                                                                                      new Value.Empty());
+                                                                                                       new Concrete.Empty());
     private static final Path FXML_ROOT = Path.of("src/test/resources/element/valid");
 
     @Test
-    public void testProcessingInstructions() {
+    void testProcessingInstructions() {
         Path filePath = FXML_ROOT.resolve("processing-instructions.fxml");
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
@@ -61,7 +62,7 @@ public class FxmlParserElementTest {
     }
 
     @Test
-    public void testInclude() {
+    void testInclude() {
         Path filePath = FXML_ROOT.resolve("include.fxml");
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
@@ -81,7 +82,7 @@ public class FxmlParserElementTest {
     }
 
     @Test
-    public void testReference() {
+    void testReference() {
         Path filePath = FXML_ROOT.resolve("reference.fxml");
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
@@ -98,7 +99,7 @@ public class FxmlParserElementTest {
     }
 
     @Test
-    public void testCopy() {
+    void testCopy() {
         Path filePath = FXML_ROOT.resolve("copy.fxml");
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
@@ -115,7 +116,7 @@ public class FxmlParserElementTest {
     }
 
     @Test
-    public void testDefine() {
+    void testDefine() {
         Path filePath = FXML_ROOT.resolve("define.fxml");
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
@@ -129,7 +130,7 @@ public class FxmlParserElementTest {
     }
 
     @Test
-    public void testScriptInline() {
+    void testScriptInline() {
         Path filePath = FXML_ROOT.resolve("script-inline.fxml");
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
@@ -147,7 +148,7 @@ public class FxmlParserElementTest {
     }
 
     @Test
-    public void testScriptReference() {
+    void testScriptReference() {
         Path filePath = FXML_ROOT.resolve("script-reference.fxml");
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
@@ -164,7 +165,7 @@ public class FxmlParserElementTest {
     }
 
     @Test
-    public void testInstanceProperty() {
+    void testInstanceProperty() {
         Path filePath = FXML_ROOT.resolve("single-property.fxml");
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
@@ -172,25 +173,25 @@ public class FxmlParserElementTest {
         assertEquals(new InstanceElement("VBox", new ClassInstanceElement.Content(List.of(NAME_SPACE_ATTRIBUTE),
                                                                                   List.of(new InstancePropertyElement(
                                                                                           "alignment",
-                                                                                          new Value.Literal(
+                                                                                          new Concrete.Literal(
                                                                                                   "TOP_RIGHT"))),
-                                                                                  new Value.Empty())), rootNode);
+                                                                                  new Concrete.Empty())), rootNode);
     }
 
     @Test
-    public void testPropertyText() {
+    void testPropertyText() {
         Path filePath = FXML_ROOT.resolve("text.fxml");
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
         assertEquals(
                 new InstanceElement("Label", new ClassInstanceElement.Content(List.of(NAME_SPACE_ATTRIBUTE), List.of(),
-                                                                                   new Value.Literal("test"))),
+                                                                              new Concrete.Literal("test"))),
                      rootNode);
     }
 
     @Test
-    public void testMultiPropertyText() {
+    void testMultiPropertyText() {
         Path filePath = FXML_ROOT.resolve("multi-text.fxml");
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
@@ -198,14 +199,14 @@ public class FxmlParserElementTest {
         assertEquals(new InstanceElement("Label", new ClassInstanceElement.Content(List.of(NAME_SPACE_ATTRIBUTE),
                                                                                    List.of(new InstancePropertyElement(
                                                                                            "alignment",
-                                                                                           new Value.Literal(
+                                                                                           new Concrete.Literal(
                                                                                                    "TOP_LEFT"))),
-                                                                                   new Value.Literal("test2"))),
+                                                                                   new Concrete.Literal("test2"))),
                      rootNode);
     }
 
     @Test
-    public void testPropertyAttribute() {
+    void testPropertyAttribute() {
         Path filePath = FXML_ROOT.resolve("property-attribute.fxml");
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
@@ -213,17 +214,17 @@ public class FxmlParserElementTest {
         assertEquals(new InstanceElement("VBox", new ClassInstanceElement.Content(List.of(NAME_SPACE_ATTRIBUTE),
                                                                                   List.of(new InstancePropertyElement(
                                                                                           "properties",
-                                                                                          new Value.Attribute(
+                                                                                          new Concrete.Attribute(
                                                                                                   new InstancePropertyAttribute(
                                                                                                           "foo",
-                                                                                                          new Value.Literal(
+                                                                                                          new Concrete.Literal(
                                                                                                                   "123"))))),
-                                                                                  new Value.Empty())),
+                                                                                  new Concrete.Empty())),
                      rootNode);
     }
 
     @Test
-    public void testPropertyElement() {
+    void testPropertyElement() {
         Path filePath = FXML_ROOT.resolve("property-element.fxml");
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
@@ -231,15 +232,15 @@ public class FxmlParserElementTest {
         assertEquals(new InstanceElement("VBox", new ClassInstanceElement.Content(List.of(NAME_SPACE_ATTRIBUTE),
                                                                                   List.of(new InstancePropertyElement(
                                                                                           "children",
-                                                                                          new Value.Element(
+                                                                                          new Concrete.Element(
                                                                                                   new InstanceElement(
                                                                                                           "VBox",
                                                                                                           EMPTY_CONTENT)))),
-                                                                                  new Value.Empty())), rootNode);
+                                                                                  new Concrete.Empty())), rootNode);
     }
 
     @Test
-    public void testMultiProperty() {
+    void testMultiProperty() {
         Path filePath = FXML_ROOT.resolve("multi-property-value.fxml");
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
@@ -248,22 +249,22 @@ public class FxmlParserElementTest {
                                                                                   List.of(new InstancePropertyElement(
                                                                                           "alignment",
                                                                                           new Value.Multi(
-                                                                                                  List.of(new Value.Attribute(
+                                                                                                  List.of(new Concrete.Attribute(
                                                                                                                   new InstancePropertyAttribute(
                                                                                                                           "value",
-                                                                                                                          new Value.Literal(
+                                                                                                                          new Concrete.Literal(
                                                                                                                                   "TOP_RIGHT"))),
-                                                                                                          new Value.Element(
+                                                                                                          new Concrete.Element(
                                                                                                                   new InstanceElement(
                                                                                                                           "Label",
                                                                                                                           EMPTY_CONTENT)),
-                                                                                                          new Value.Literal(
+                                                                                                          new Concrete.Literal(
                                                                                                                   "text"))))),
-                                                                                  new Value.Empty())), rootNode);
+                                                                                  new Concrete.Empty())), rootNode);
     }
 
     @Test
-    public void testEmptyProperty() {
+    void testEmptyProperty() {
         Path filePath = FXML_ROOT.resolve("empty-property.fxml");
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
@@ -271,13 +272,13 @@ public class FxmlParserElementTest {
         assertEquals(new InstanceElement("VBox", new ClassInstanceElement.Content(List.of(NAME_SPACE_ATTRIBUTE),
                                                                                   List.of(new InstancePropertyElement(
                                                                                           "alignment",
-                                                                                          new Value.Empty())),
-                                                                                  new Value.Empty())),
+                                                                                          new Concrete.Empty())),
+                                                                                  new Concrete.Empty())),
                      rootNode);
     }
 
     @Test
-    public void testStaticProperty() {
+    void testStaticProperty() {
         Path filePath = FXML_ROOT.resolve("static.fxml");
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
@@ -285,13 +286,13 @@ public class FxmlParserElementTest {
         assertEquals(new InstanceElement("VBox", new ClassInstanceElement.Content(List.of(NAME_SPACE_ATTRIBUTE),
                                                                                   List.of(new StaticPropertyElement(
                                                                                           "GridPane", "alignment",
-                                                                                          new Value.Literal(
+                                                                                          new Concrete.Literal(
                                                                                                   "TOP_RIGHT"))),
-                                                                                  new Value.Empty())), rootNode);
+                                                                                  new Concrete.Empty())), rootNode);
     }
 
     @Test
-    public void testQualifiedStaticProperty() {
+    void testQualifiedStaticProperty() {
         Path filePath = FXML_ROOT.resolve("qualified-static.fxml");
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
@@ -300,13 +301,13 @@ public class FxmlParserElementTest {
                                                                                   List.of(new StaticPropertyElement(
                                                                                           "javafx.scene.layout.GridPane",
                                                                                           "alignment",
-                                                                                          new Value.Literal(
+                                                                                          new Concrete.Literal(
                                                                                                   "TOP_RIGHT"))),
-                                                                                  new Value.Empty())), rootNode);
+                                                                                  new Concrete.Empty())), rootNode);
     }
 
     @Test
-    public void testRoot() {
+    void testRoot() {
         Path filePath = FXML_ROOT.resolve("root.fxml");
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
@@ -315,16 +316,16 @@ public class FxmlParserElementTest {
     }
 
     @Test
-    public void testValue() {
+    void testValue() {
         Path filePath = FXML_ROOT.resolve("value.fxml");
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
-        assertEquals(new ValueElement("Double", new Value.Literal("1"), NAME_SPACE_ONLY_CONTENT), rootNode);
+        assertEquals(new ValueElement("Double", new Concrete.Literal("1"), NAME_SPACE_ONLY_CONTENT), rootNode);
     }
 
     @Test
-    public void testConstant() {
+    void testConstant() {
         Path filePath = FXML_ROOT.resolve("constant.fxml");
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
@@ -333,7 +334,7 @@ public class FxmlParserElementTest {
     }
 
     @Test
-    public void testFactory() {
+    void testFactory() {
         Path filePath = FXML_ROOT.resolve("factory.fxml");
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 

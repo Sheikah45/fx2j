@@ -15,27 +15,27 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @Execution(ExecutionMode.CONCURRENT)
 class StringUtilsTest {
     @Test
-    public void testSubstringBeforeLastWithDot() {
+    void testSubstringBeforeLastWithDot() {
         assertEquals("this.is.a", StringUtils.substringBeforeLast("this.is.a.test", "."));
     }
 
     @Test
-    public void testSubstringBeforeLastWithNoDelimiter() {
+    void testSubstringBeforeLastWithNoDelimiter() {
         assertEquals("this.is.a.test", StringUtils.substringBeforeLast("this.is.a.test", "-"));
     }
 
     @Test
-    public void testSubstringAfterLast() {
+    void testSubstringAfterLast() {
         assertEquals("string", StringUtils.substringAfterLast("this.is.a.test.string", "."));
     }
 
     @Test
-    public void testSubstringAfterLastWithNoDelimiter() {
+    void testSubstringAfterLastWithNoDelimiter() {
         assertEquals("this.is.a.test", StringUtils.substringAfterLast("this.is.a.test", "-"));
     }
 
     @Test
-    public void testCapitalizeLowerCase() {
+    void testCapitalizeLowerCase() {
         assertEquals("HelloWorld", StringUtils.capitalize("helloWorld"));
     }
 
@@ -45,38 +45,38 @@ class StringUtilsTest {
     }
 
     @Test
-    public void testCamelCaseUpperCase() {
+    void testCamelCaseUpperCase() {
         assertEquals("helloWorld", StringUtils.camelCase("HelloWorld"));
     }
 
     @Test
-    public void testCamelCaseAlreadyLowerCase() {
+    void testCamelCaseAlreadyLowerCase() {
         assertEquals("helloWorld", StringUtils.camelCase("helloWorld"));
     }
 
     @Test
-    public void testDelimitedToCapitalizeUnderscore() {
+    void testDelimitedToCapitalizeUnderscore() {
         assertEquals("HelloWorld", StringUtils.delimitedToCapitalize("hello_world"));
     }
 
     @Test
-    public void testDelimitedToCapitalizeDash() {
+    void testDelimitedToCapitalizeDash() {
         assertEquals("JavaIsCool", StringUtils.delimitedToCapitalize("java-is-cool"));
     }
 
     @Test
-    public void testDelimitedToCapitalizeMixed() {
+    void testDelimitedToCapitalizeMixed() {
         assertEquals("JavaIsCool", StringUtils.delimitedToCapitalize("java_is-cool"));
     }
 
     @Test
-    public void testFxmlFileToBuilderClass() {
+    void testFxmlFileToBuilderClass() {
         Path filePath = Paths.get("src/main/resources/fxmlTestFile.fxml");
         assertEquals("FxmlTestFileBuilder", StringUtils.fxmlFileToBuilderClass(filePath));
     }
 
     @Test
-    public void testFxmlFileToPackageName() {
+    void testFxmlFileToPackageName() {
         Path filePath = Paths.get("myapp/test/fxml/test.fxml");
         assertEquals("myapp.test.fxml", StringUtils.fxmlFileToPackageName(filePath));
     }

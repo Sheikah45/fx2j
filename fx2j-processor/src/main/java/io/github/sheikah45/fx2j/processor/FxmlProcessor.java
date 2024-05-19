@@ -22,7 +22,6 @@ import io.github.sheikah45.fx2j.processor.internal.utils.StringUtils;
 import javax.lang.model.element.Modifier;
 import javax.tools.JavaFileObject;
 import java.io.IOException;
-import java.lang.invoke.MethodType;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.ResourceBundle;
@@ -95,7 +94,7 @@ public class FxmlProcessor {
         Path absoluteResourceRootPath = resourceRootPath.toAbsolutePath();
         objectNodeCode = new ObjectNodeProcessor(fxmlComponents.rootNode(), controllerClass, resolver, absoluteFilePath,
                                                  absoluteResourceRootPath, this.rootPackage).getNodeCode();
-        rootClass = MethodType.methodType(objectNodeCode.nodeClass()).wrap().returnType();
+        rootClass = resolver.wrapType(objectNodeCode.nodeClass());
 
         relativeFilePath = absoluteResourceRootPath.relativize(absoluteFilePath);
         String relativePackage = StringUtils.fxmlFileToPackageName(relativeFilePath);

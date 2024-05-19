@@ -34,7 +34,7 @@ public sealed interface FxmlProperty {
             return handler();
         }
 
-        Value.Handler handler();
+        Handler handler();
 
         String eventName();
     }
