@@ -78,6 +78,14 @@ class FxmlProcessorControllerTest extends AbstractProcessorTest {
         controller.withoutEventButton.fire();
         assertEquals(1, controller.noEventActionCount);
 
+        assertEquals(0, controller.throwsEventCount);
+        controller.throwingEventButton.fire();
+        assertEquals(1, controller.throwsEventCount);
+
+        assertEquals(0, controller.throwsNoEventCount);
+        controller.throwingNoEventButton.fire();
+        assertEquals(1, controller.throwsNoEventCount);
+
         assertEquals(0, controller.contextRequestCount);
         controller.contextButton.getOnContextMenuRequested()
                                 .handle(new ContextMenuEvent(null, null, null, 0, 0, 0, 0, false, null));

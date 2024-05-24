@@ -159,16 +159,20 @@ public class FxmlParser {
             case "fx:root" -> createRootElement(element);
             case "fx:define" -> createDefineElement(element);
             case "fx:script" -> createScriptElement(element);
-            case String tag when tag.matches("[a-z]\\w*") ->
-                    new InstancePropertyElement(tag, createPropertyValue(element));
-            case String tag when tag.matches("(\\w*\\.)*[A-Z]\\w*\\.[a-z]\\w*") -> {
-                Value value = createPropertyValue(element);
-                int separatorIndex = tag.lastIndexOf('.');
-                String className = tag.substring(0, separatorIndex);
-                String property = tag.substring(separatorIndex + 1);
-                yield new StaticPropertyElement(className, property, value);
+            case String tag -> {
+                int separatorIndex = tag.lastIndexOf(".");
+                if (Character.isLowerCase(tag.charAt(separatorIndex + 1))) {
+                    if (separatorIndex == -1) {
+                        yield new InstancePropertyElement(tag, createPropertyValue(element));
+                    } else {
+                        yield new StaticPropertyElement(tag.substring(0, separatorIndex),
+                                                        tag.substring(separatorIndex + 1),
+                                                        createPropertyValue(element));
+                    }
+                } else {
+                    yield createInstanceElement(element);
+                }
             }
-            default -> createInstanceElement(element);
         };
     }
 
@@ -247,18 +251,6 @@ public class FxmlParser {
         return new IncludeElement(source, resources, charset, createContent(element));
     }
 
-    private static Value.Single createPropertyValue(String value) {
-        return switch (value) {
-            case String val when val.startsWith("@") -> new Concrete.Location(Path.of(val.substring(1)));
-            case String val when val.startsWith("%") -> new Concrete.Resource(val.substring(1));
-            case String val when val.matches("\\$\\{.*}") -> Expression.parse(val.substring(2, val.length() - 1));
-            case String val when val.startsWith("$") -> new Concrete.Reference(val.substring(1));
-            case String val when val.startsWith("\\") -> new Concrete.Literal(val.substring(1));
-            case String val when val.isBlank() -> new Concrete.Empty();
-            case String val -> new Concrete.Literal(val);
-        };
-    }
-
     private static FxmlAttribute createFxmlAttribute(Attr attr) {
         return switch (attr.getName()) {
             case "fx:id" -> new IdAttribute(attr.getValue());
@@ -269,12 +261,29 @@ public class FxmlParser {
                     new DefaultNameSpaceAttribute(URI.create(attr.getValue()));
             case String name when name.startsWith("on") ->
                     new EventHandlerAttribute(name, createEventHandler(attr.getValue()));
-            case String name when name.matches("(\\w*\\.)*[A-Z]\\w*\\.[a-z]\\w*") -> {
+            case String name -> {
                 int separatorIndex = name.lastIndexOf('.');
-                yield new StaticPropertyAttribute(name.substring(0, separatorIndex), name.substring(separatorIndex + 1),
-                                                  createPropertyValue(attr.getValue()));
+                if (separatorIndex == -1) {
+                    yield new InstancePropertyAttribute(name, createPropertyValue(attr.getValue()));
+                } else {
+                    yield new StaticPropertyAttribute(name.substring(0, separatorIndex),
+                                                      name.substring(separatorIndex + 1),
+                                                      createPropertyValue(attr.getValue()));
+                }
             }
-            case String name -> new InstancePropertyAttribute(name, createPropertyValue(attr.getValue()));
+        };
+    }
+
+    private static Value.Single createPropertyValue(String value) {
+        return switch (value) {
+            case String val when val.startsWith("@") -> new Concrete.Location(Path.of(val.substring(1)));
+            case String val when val.startsWith("%") -> new Concrete.Resource(val.substring(1));
+            case String val when val.startsWith("${") && val.endsWith("}") ->
+                    Expression.parse(val.substring(2, val.length() - 1));
+            case String val when val.startsWith("$") -> new Concrete.Reference(val.substring(1));
+            case String val when val.startsWith("\\") -> new Concrete.Literal(val.substring(1));
+            case String val when val.isBlank() -> new Concrete.Empty();
+            case String val -> new Concrete.Literal(val);
         };
     }
 
