@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @Execution(ExecutionMode.CONCURRENT)
-public class Fx2jProcessorTest {
+class Fx2jProcessorTest {
 
     @TempDir
     private Path compileOutput;
@@ -34,7 +34,7 @@ public class Fx2jProcessorTest {
     private Path sourceOutput;
 
     @Test
-    public void testCompileFx2j() throws Exception {
+    void testCompileFx2j() throws Exception {
         FxmlProcessor fxmlProcessor = new FxmlProcessor(Path.of("src/test/resources/fxml/read/test.fxml"),
                                                         Path.of("src/test/resources"), "test",
                                                         Fx2jProcessorTest.class.getClassLoader()
@@ -52,7 +52,7 @@ public class Fx2jProcessorTest {
     }
 
     @Test
-    public void testCompileFx2jAbsolutePath() throws Exception {
+    void testCompileFx2jAbsolutePath() throws Exception {
         FxmlProcessor fxmlProcessor = new FxmlProcessor(
                 Path.of("src/test/resources/fxml/read/test.fxml").toAbsolutePath(),
                 Path.of("src/test/resources"), "test",
@@ -71,7 +71,7 @@ public class Fx2jProcessorTest {
     }
 
     @Test
-    public void testCompileFx2jModularized() throws Exception {
+    void testCompileFx2jModularized() throws Exception {
         ClassLoader loader = createApiModuleClassLoader();
 
         FxmlProcessor fxmlProcessor = new FxmlProcessor(Path.of("src/test/resources/fxml/read/test.fxml"),
@@ -133,7 +133,7 @@ public class Fx2jProcessorTest {
     }
 
     @Test
-    public void testWriteFx2j() throws Exception {
+    void testWriteFx2j() throws Exception {
         FxmlProcessor fxmlProcessor = new FxmlProcessor(Path.of("src/test/resources/fxml/read/test.fxml"),
                                                         Path.of("src/test/resources"), "test",
                                                         Fx2jProcessorTest.class.getClassLoader()

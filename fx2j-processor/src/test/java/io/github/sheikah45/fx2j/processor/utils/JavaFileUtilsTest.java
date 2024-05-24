@@ -10,10 +10,10 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @Execution(ExecutionMode.CONCURRENT)
-public class JavaFileUtilsTest {
+class JavaFileUtilsTest {
 
     @Test
-    public void testGetCanonicalClassName() {
+    void testGetCanonicalClassName() {
         assertEquals("test.test.Test", JavaFileUtils.getCanonicalClassName(JavaFile.builder("test.test", TypeSpec.classBuilder("Test")
                                                                                                                  .build())
                                                                                    .build()));

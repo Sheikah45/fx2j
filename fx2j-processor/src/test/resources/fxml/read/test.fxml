@@ -1,4 +1,4 @@
-<?controllerType java.lang.String?>
+<?fx2jControllerType java.lang.String?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.layout.AnchorPane?>

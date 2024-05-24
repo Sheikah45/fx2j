@@ -3,6 +3,7 @@ package io.github.sheikah45.fx2j.processor.testutils;
 import io.github.sheikah45.fx2j.processor.Fx2jCompiler;
 import io.github.sheikah45.fx2j.processor.Fx2jProcessor;
 
+import java.io.File;
 import java.lang.module.Configuration;
 import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleFinder;
@@ -42,8 +43,11 @@ public class TestCompiler {
 
     public static List<Path> getFilteredClasspath() {
         String classpathString = System.getProperty("java.class.path");
-        return Arrays.stream(classpathString.split(System.getProperty("path.separator")))
-                     .filter(path -> path.contains("fx2j") || path.contains("javafx") || path.contains("javapoet"))
+        return Arrays.stream(classpathString.split(File.pathSeparator))
+                     .filter(path -> (path.contains("fx2j-processor") && path.contains("test")) ||
+                                     path.contains("fx2j-api") ||
+                                     path.contains("javafx") ||
+                                     path.contains("javapoet"))
                      .map(Path::of)
                      .toList();
     }

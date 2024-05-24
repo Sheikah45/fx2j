@@ -9,23 +9,25 @@ import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeSpec;
 import com.squareup.javapoet.WildcardTypeName;
 import io.github.sheikah45.fx2j.api.Fx2jBuilder;
+import io.github.sheikah45.fx2j.parser.FxmlComponents;
+import io.github.sheikah45.fx2j.parser.FxmlParser;
+import io.github.sheikah45.fx2j.parser.FxmlProcessingInstruction;
+import io.github.sheikah45.fx2j.parser.attribute.ControllerAttribute;
 import io.github.sheikah45.fx2j.processor.internal.ObjectNodeProcessor;
 import io.github.sheikah45.fx2j.processor.internal.ReflectionResolver;
-import io.github.sheikah45.fx2j.processor.internal.model.FxmlComponents;
 import io.github.sheikah45.fx2j.processor.internal.model.ObjectNodeCode;
-import io.github.sheikah45.fx2j.processor.internal.utils.FXMLUtils;
 import io.github.sheikah45.fx2j.processor.internal.utils.JavaFileUtils;
 import io.github.sheikah45.fx2j.processor.internal.utils.StringUtils;
 
 import javax.lang.model.element.Modifier;
 import javax.tools.JavaFileObject;
 import java.io.IOException;
-import java.lang.invoke.MethodType;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * The FxmlProcessor class is responsible for processing an FXML file and generating Java code for it.
@@ -56,29 +58,43 @@ public class FxmlProcessor {
      * @param rootPackage      The root package for the generated Java code.
      * @param classLoader      The class loader to use for resolving imported classes.
      */
+    @SuppressWarnings("unchecked")
     public FxmlProcessor(Path filePath, Path resourceRootPath, String rootPackage, ClassLoader classLoader) {
         this.rootPackage = rootPackage;
         Path absoluteFilePath = filePath.toAbsolutePath();
-        FxmlComponents fxmlComponents = FXMLUtils.readFxml(absoluteFilePath);
-        resolver = new ReflectionResolver(fxmlComponents.imports(), classLoader);
+        FxmlComponents fxmlComponents = FxmlParser.readFxml(absoluteFilePath);
+        Set<String> imports = fxmlComponents.rootProcessingInstructions()
+                                            .stream()
+                                            .filter(FxmlProcessingInstruction.Import.class::isInstance)
+                                            .map(FxmlProcessingInstruction.Import.class::cast)
+                                            .map(FxmlProcessingInstruction.Import::value)
+                                            .collect(Collectors.toSet());
 
-        String controllerClassName = fxmlComponents.rootNode()
-                                                   .attributes()
-                                                   .getOrDefault("fx:controller", fxmlComponents.controllerType());
+        resolver = new ReflectionResolver(imports, classLoader);
 
-        if (controllerClassName != null) {
-            controllerClass = resolver.resolveRequired(controllerClassName);
-            if (controllerClass == null) {
-                throw new IllegalArgumentException("Unable to find controller class %s".formatted(controllerClassName));
-            }
-        } else {
-            controllerClass = Object.class;
-        }
+        controllerClass = fxmlComponents.rootNode()
+                                        .content()
+                                        .attributes()
+                                        .stream()
+                                        .filter(ControllerAttribute.class::isInstance)
+                                        .map(ControllerAttribute.class::cast)
+                                        .map(ControllerAttribute::className)
+                                        .findFirst()
+                                        .or(() -> fxmlComponents.rootProcessingInstructions()
+                                                                .stream()
+                                                                .filter(FxmlProcessingInstruction.Custom.class::isInstance)
+                                                                .map(FxmlProcessingInstruction.Custom.class::cast)
+                                                                .filter(custom -> "fx2jControllerType".equals(
+                                                                        custom.name()))
+                                                                .map(FxmlProcessingInstruction.Custom::value)
+                                                                .findFirst())
+                                        .map(typeName -> (Class<Object>) resolver.resolveRequired(typeName))
+                                        .orElse(Object.class);
 
         Path absoluteResourceRootPath = resourceRootPath.toAbsolutePath();
         objectNodeCode = new ObjectNodeProcessor(fxmlComponents.rootNode(), controllerClass, resolver, absoluteFilePath,
                                                  absoluteResourceRootPath, this.rootPackage).getNodeCode();
-        rootClass = MethodType.methodType(objectNodeCode.nodeClass()).wrap().returnType();
+        rootClass = resolver.wrapType(objectNodeCode.nodeClass());
 
         relativeFilePath = absoluteResourceRootPath.relativize(absoluteFilePath);
         String relativePackage = StringUtils.fxmlFileToPackageName(relativeFilePath);

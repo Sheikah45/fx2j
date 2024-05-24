@@ -8,9 +8,11 @@ import io.github.sheikah45.fx2j.processor.internal.model.NamedArgValue;
 import io.github.sheikah45.fx2j.processor.internal.utils.StringUtils;
 
 import java.lang.annotation.Annotation;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
+import java.lang.reflect.GenericDeclaration;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -32,10 +34,16 @@ import java.util.stream.Collectors;
 @SuppressWarnings("unchecked")
 public class ReflectionResolver {
 
+    private static final Set<Class<?>> ALLOWED_LITERALS = Set.of(Byte.class, Short.class, Integer.class, Long.class,
+                                                                 Character.class, Float.class, Double.class,
+                                                                 Boolean.class);
+
     public static final String NAMED_ARG_CLASS = "javafx.beans.NamedArg";
     public static final String DEFAULT_PROPERTY_CLASS = "javafx.beans.DefaultProperty";
     private final ClassLoader classLoader;
 
+    private final Map<String, Integer> nameCounts = new HashMap<>();
+    private final Map<String, Type> idTypeMap = new HashMap<>();
     private final Set<String> importPrefixes = new HashSet<>();
     private final Map<String, Class<?>> resolvedClassesMap = new HashMap<>();
 
@@ -48,7 +56,8 @@ public class ReflectionResolver {
         return resolve(typeName) != null;
     }
 
-    public Class<?> checkResolved(Class<?> clazz) {
+    public Class<?> checkResolved(Type type) {
+        Class<?> clazz = extractClass(type);
         Class<?> previousValue = resolvedClassesMap.put(clazz.getCanonicalName(), clazz);
         if (previousValue != null && previousValue != clazz) {
             throw new IllegalArgumentException("Class canonical name already resolved with a different class");
@@ -112,35 +121,37 @@ public class ReflectionResolver {
         });
     }
 
-    public boolean hasCopyConstructor(Class<?> clazz) {
+    public boolean hasCopyConstructor(Type type) {
         try {
+            Class<?> clazz = extractClass(type);
             return Modifier.isPublic(clazz.getConstructor(clazz).getModifiers());
         } catch (NoSuchMethodException e) {
             return false;
         }
     }
 
-    public boolean hasDefaultConstructor(Class<?> clazz) {
+    public boolean hasDefaultConstructor(Type type) {
         try {
-            return Modifier.isPublic(clazz.getConstructor().getModifiers());
+            return Modifier.isPublic(extractClass(type).getConstructor().getModifiers());
         } catch (NoSuchMethodException e) {
             return false;
         }
     }
 
-    public Optional<Class<?>> resolveFieldTypeRequiredPublic(Class<?> clazz, String fieldName) {
-        return resolveFieldRequiredPublic(clazz, fieldName).map(Field::getType);
+    public Optional<Class<?>> resolveFieldTypeRequiredPublic(Type type, String fieldName) {
+        return resolveFieldRequiredPublic(type, fieldName).map(Field::getType);
     }
 
-    public Optional<Field> resolveField(Class<?> clazz, String fieldName) {
+    public Optional<Field> resolveField(Type type, String fieldName) {
         try {
-            return Optional.of(clazz.getField(fieldName));
+            return Optional.of(extractClass(type).getField(fieldName));
         } catch (NoSuchFieldException e) {
             return Optional.empty();
         }
     }
 
-    public Optional<Field> resolveFieldRequiredPublic(Class<?> clazz, String fieldName) {
+    public Optional<Field> resolveFieldRequiredPublic(Type type, String fieldName) {
+        Class<?> clazz = extractClass(type);
         try {
             Field field = clazz.getDeclaredField(fieldName);
             if (!Modifier.isPublic(field.getModifiers())) {
@@ -158,19 +169,19 @@ public class ReflectionResolver {
     }
 
     public Class<?> resolveClassFromType(Type type) {
-        if (type instanceof Class<?> clazz) {
-            return clazz;
-        } else if (type instanceof ParameterizedType parameterizedType) {
-            return resolveClassFromType(parameterizedType.getRawType());
-        } else if (type instanceof WildcardType wildcardType) {
-            Type[] upperBounds = wildcardType.getUpperBounds();
-            if (upperBounds.length != 1) {
-                throw new IllegalArgumentException("Type does not have exactly one upper bound");
+        return switch (type) {
+            case Class<?> clazz -> clazz;
+            case ParameterizedType parameterizedType -> resolveClassFromType(parameterizedType.getRawType());
+            case WildcardType wildcardType -> {
+                Type[] upperBounds = wildcardType.getUpperBounds();
+                if (upperBounds.length != 1) {
+                    throw new IllegalArgumentException("Type does not have exactly one upper bound");
+                }
+                yield resolveClassFromType(upperBounds[0]);
             }
-            return resolveClassFromType(upperBounds[0]);
-        } else {
-            throw new UnsupportedOperationException("Unable to get class from type %s".formatted(type));
-        }
+            case null, default ->
+                    throw new UnsupportedOperationException("Unable to get class from type %s".formatted(type));
+        };
     }
 
     public Class<?>[] resolveUpperBoundTypeArguments(Type type) {
@@ -184,41 +195,45 @@ public class ReflectionResolver {
     }
 
     public Class<?> resolveTypeUpperBound(Type type) {
-        if (type instanceof Class<?> clazz) {
-            return clazz;
-        } else if (type instanceof ParameterizedType parameterizedType) {
-            return resolveTypeUpperBound(parameterizedType.getRawType());
-        } else if (type instanceof WildcardType wildcardType) {
-            Type[] upperBounds = wildcardType.getUpperBounds();
-            if (upperBounds.length != 1) {
-                throw new IllegalArgumentException("Type does not have exactly one upper bound");
+        return switch (type) {
+            case Class<?> clazz -> clazz;
+            case ParameterizedType parameterizedType -> resolveTypeUpperBound(parameterizedType.getRawType());
+            case WildcardType wildcardType -> {
+                Type[] upperBounds = wildcardType.getUpperBounds();
+                if (upperBounds.length != 1) {
+                    throw new IllegalArgumentException("Type does not have exactly one upper bound");
+                }
+                yield resolveTypeUpperBound(upperBounds[0]);
             }
-            return resolveTypeUpperBound(upperBounds[0]);
-        } else {
-            throw new UnsupportedOperationException("Cannot resolve upper bound of type %s".formatted(type));
-        }
+            case null, default ->
+                    throw new UnsupportedOperationException("Cannot resolve upper bound of type %s".formatted(type));
+        };
     }
 
-    public Class<?>[] resolveLowerBoundTypeArguments(ParameterizedType parameterizedType) {
-        return Arrays.stream(parameterizedType.getActualTypeArguments())
-                     .map(this::resolveTypeLowerBound)
-                     .toArray(Class[]::new);
+    public Class<?>[] resolveLowerBoundTypeArguments(Type type) {
+        if (type instanceof ParameterizedType parameterizedType) {
+            return Arrays.stream(parameterizedType.getActualTypeArguments())
+                         .map(this::resolveTypeLowerBound)
+                         .toArray(Class[]::new);
+        } else {
+            return null;
+        }
     }
 
     public Class<?> resolveTypeLowerBound(Type type) {
-        if (type instanceof Class<?> clazz) {
-            return clazz;
-        } else if (type instanceof ParameterizedType parameterizedType) {
-            return resolveTypeLowerBound(parameterizedType.getRawType());
-        } else if (type instanceof WildcardType wildcardType) {
-            Type[] lowerBounds = wildcardType.getLowerBounds();
-            if (lowerBounds.length != 1) {
-                throw new IllegalArgumentException("Type does not have exactly one lower bound");
+        return switch (type) {
+            case Class<?> clazz -> clazz;
+            case ParameterizedType parameterizedType -> resolveTypeLowerBound(parameterizedType.getRawType());
+            case WildcardType wildcardType -> {
+                Type[] lowerBounds = wildcardType.getLowerBounds();
+                if (lowerBounds.length != 1) {
+                    throw new IllegalArgumentException("Type does not have exactly one lower bound");
+                }
+                yield resolveTypeUpperBound(lowerBounds[0]);
             }
-            return resolveTypeUpperBound(lowerBounds[0]);
-        } else {
-            throw new UnsupportedOperationException("Cannot resolve lower bound of type %s".formatted(type));
-        }
+            case null, default ->
+                    throw new UnsupportedOperationException("Cannot resolve lower bound of type %s".formatted(type));
+        };
     }
 
     public boolean parameterTypeArgumentsMeetBounds(Type parameterType, Class<?>[] boundTypeArguments) {
@@ -258,44 +273,60 @@ public class ReflectionResolver {
         return upperBound != desiredUpperBound;
     }
 
-    public Optional<Method> findMethod(Class<?> clazz, String name, Class<?>... parameterTypes) {
-        try {
-            return Optional.of(clazz.getMethod(name, parameterTypes));
-        } catch (NoSuchMethodException e) {
-            return Optional.empty();
-        }
+    public Optional<Method> findMethod(Type type, String name, Type... parameterTypes) {
+        int numParameters = parameterTypes.length;
+        return Arrays.stream(extractClass(type).getMethods())
+                     .filter(method -> method.getName().equals(name))
+                     .filter(method -> method.getParameterCount() == numParameters)
+                     .filter(method -> {
+                         Map<String, TypeVariable<? extends GenericDeclaration>> typeParameters = new HashMap<>();
+                         Arrays.stream(method.getDeclaringClass().getTypeParameters())
+                               .forEach(typeVariable -> typeParameters.put(typeVariable.getName(), typeVariable));
+                         Arrays.stream(method.getTypeParameters())
+                               .forEach(typeVariable -> typeParameters.put(typeVariable.getName(), typeVariable));
+                         Type[] methodParameterTypes = method.getGenericParameterTypes();
+                         for (int i = 0; i < numParameters; i++) {
+                             if (!(isAssignableFrom(methodParameterTypes[i], parameterTypes[i]))) {
+                                 return false;
+                             }
+                         }
+                         return true;
+                     })
+                     .findFirst();
     }
 
-    public Optional<Method> resolveGetter(Class<?> clz, String name) {
-        return findMethod(clz, "get%s".formatted(StringUtils.capitalize(name)), 0);
+    public Optional<Method> resolveGetter(Type type, String name) {
+        return findMethod(type, "get%s".formatted(StringUtils.capitalize(name)), 0);
     }
 
-    public Optional<Method> findMethod(Class<?> clazz, String name, int paramCount) {
-        return Arrays.stream(clazz.getMethods())
+    public Optional<Method> findMethod(Type type, String name, int paramCount) {
+        return Arrays.stream(extractClass(type).getMethods())
                      .filter(method -> method.getName().equals(name))
                      .filter(method -> method.getParameterCount() == paramCount)
                      .findFirst();
     }
 
-    public Optional<Method> resolveProperty(Class<?> clz, String name) {
-        return findMethod(clz, "%sProperty".formatted(StringUtils.camelCase(name)), 0);
+    public Optional<Method> resolveProperty(Type type, String name) {
+        return findMethod(type, "%sProperty".formatted(StringUtils.camelCase(name)), 0);
     }
 
-    public Optional<Method> resolveSetter(Class<?> clz, String name) {
-        return findMethod(clz, "set%s".formatted(StringUtils.capitalize(name)), 1);
+    public Optional<Method> resolveSetter(Type type, String name) {
+        return findMethod(type, "set%s".formatted(StringUtils.capitalize(name)), 1);
     }
 
-    public Optional<Method> resolveSetter(Class<?> clz, String name, Class<?> valueClass) {
-        return findMethod(clz, "set%s".formatted(StringUtils.capitalize(name)), valueClass);
+    public Optional<Method> resolveSetter(Type type, String name, Type valueClass) {
+        return findMethod(type, "set%s".formatted(StringUtils.capitalize(name)), valueClass);
     }
 
-    public Optional<Method> resolveSetterRequiredPublicIfExists(Class<?> clz, String name, Class<?> valueClass) {
-        return findMethodRequiredPublicIfExists(clz, "set%s".formatted(StringUtils.capitalize(name)), valueClass);
+    public Optional<Method> resolveSetterRequiredPublicIfExists(Type type, String name, Type valueClass) {
+        return findMethodRequiredPublicIfExists(type, "set%s".formatted(StringUtils.capitalize(name)), valueClass);
     }
 
-    public Optional<Method> findMethodRequiredPublicIfExists(Class<?> clazz, String name, Class<?>... parameterTypes) {
+    public Optional<Method> findMethodRequiredPublicIfExists(Type type, String name, Type... parameterTypes) {
+        Class<?> clazz = extractClass(type);
+        Class<?>[] parameterClasses = Arrays.stream(parameterTypes).map(this::extractClass).toArray(Class[]::new);
         try {
-            Method method = clazz.getDeclaredMethod(name, parameterTypes);
+            Method method = clazz.getDeclaredMethod(name, parameterClasses);
             if (!Modifier.isPublic(method.getModifiers())) {
                 throw new IllegalArgumentException("%s is not public from %s".formatted(method, clazz));
             }
@@ -304,17 +335,18 @@ public class ReflectionResolver {
         } catch (NoSuchMethodException ignored) {}
 
         try {
-            return Optional.of(clazz.getMethod(name, parameterTypes));
+            return Optional.of(clazz.getMethod(name, parameterClasses));
         } catch (NoSuchMethodException e) {
             return Optional.empty();
         }
     }
 
-    public Optional<Method> resolveStaticSetter(Class<?> clz, String name) {
-        return findMethod(clz, "set%s".formatted(StringUtils.capitalize(name)), 2);
+    public Optional<Method> resolveStaticSetter(Type type, String name) {
+        return findMethod(type, "set%s".formatted(StringUtils.capitalize(name)), 2);
     }
 
-    public String getDefaultProperty(Class<?> clazz) {
+    public String getDefaultProperty(Type type) {
+        Class<?> clazz = extractClass(type);
         Class<Annotation> defaultPropertyClass = (Class<Annotation>) resolveRequired(DEFAULT_PROPERTY_CLASS);
         Annotation defaultProperty = clazz.getAnnotation(defaultPropertyClass);
         if (defaultProperty == null) {
@@ -373,28 +405,84 @@ public class ReflectionResolver {
     }
 
     public TypeName resolveTypeNameWithoutVariables(Type type) {
-        if (type instanceof Class<?> clazz) {
-            return ClassName.get(clazz);
-        } else if (type instanceof ParameterizedType parameterizedType) {
-            TypeName[] typeNames = Arrays.stream(parameterizedType.getActualTypeArguments())
-                                         .map(this::resolveTypeNameWithoutVariables)
-                                         .toArray(TypeName[]::new);
-            Type rawType = parameterizedType.getRawType();
-            if (!(rawType instanceof Class<?> rawClass)) {
-                throw new UnsupportedOperationException(
-                        "Unable to resolve type name for parameterized type that isn't a class %s".formatted(rawType));
+        return switch (type) {
+            case Class<?> clazz -> ClassName.get(clazz);
+            case ParameterizedType parameterizedType -> {
+                TypeName[] typeNames = Arrays.stream(parameterizedType.getActualTypeArguments())
+                                             .map(this::resolveTypeNameWithoutVariables)
+                                             .toArray(TypeName[]::new);
+                Type rawType = parameterizedType.getRawType();
+                if (!(rawType instanceof Class<?> rawClass)) {
+                    throw new UnsupportedOperationException(
+                            "Unable to resolve type name for parameterized type that isn't a class %s".formatted(
+                                    rawType));
+                }
+                yield ParameterizedTypeName.get(ClassName.get(rawClass), typeNames);
             }
-            return ParameterizedTypeName.get(ClassName.get(rawClass), typeNames);
-        } else if (type instanceof TypeVariable<?> typeVariable) {
-            Type[] bounds = typeVariable.getBounds();
-            if (bounds.length != 1) {
-                throw new UnsupportedOperationException(
-                        "Unable to resolve type name for multiple bounds for type %s".formatted(typeVariable));
-            }
+            case WildcardType wildcardType -> WildcardTypeName.get(wildcardType);
+            case TypeVariable<?> typeVariable -> {
+                Type[] bounds = typeVariable.getBounds();
+                if (bounds.length != 1) {
+                    throw new UnsupportedOperationException(
+                            "Unable to resolve type name for multiple bounds for type %s".formatted(typeVariable));
+                }
 
-            return WildcardTypeName.subtypeOf(resolveTypeNameWithoutVariables(bounds[0]));
-        } else {
-            return TypeName.get(type);
+                yield WildcardTypeName.subtypeOf(resolveTypeNameWithoutVariables(bounds[0]));
+            }
+            case null -> null;
+            default -> TypeName.get(type);
+        };
+    }
+
+    public String getDeconflictedName(Type type) {
+        Class<?> clazz = extractClass(type);
+        String rawIdentifier = StringUtils.camelCase(clazz.getSimpleName());
+        Integer nameCount = nameCounts.compute(rawIdentifier, (key, value) -> value == null ? 0 : value + 1);
+        String identifier = rawIdentifier + nameCount;
+        storeIdType(identifier, type);
+        return identifier;
+    }
+
+    public void storeIdType(String id, Type type) {
+        if (idTypeMap.put(id, type) != null) {
+            throw new IllegalStateException("Multiple objects have the same id %s".formatted(id));
         }
+    }
+
+    public Type getStoredTypeById(String id) {
+        return idTypeMap.computeIfAbsent(id, key -> {
+            throw new IllegalStateException("No type known for id %s".formatted(id));
+        });
+    }
+
+    public Class<?> getStoredClassById(String id) {
+        return extractClass(idTypeMap.computeIfAbsent(id, key -> {
+            throw new IllegalStateException("No type known for id %s".formatted(id));
+        }));
+    }
+
+    public List<Constructor<?>> getConstructors(Type type) {
+        return List.of(extractClass(type).getConstructors());
+    }
+
+    public boolean isPrimitive(Type type) {
+        Class<?> clazz = extractClass(type);
+        return clazz.isPrimitive() || MethodType.methodType(clazz).hasWrappers();
+    }
+
+    public Class<?> wrapType(Type type) {
+        return MethodType.methodType(extractClass(type)).wrap().returnType();
+    }
+
+    private Class<?> extractClass(Type type) {
+        return switch (type) {
+            case Class<?> clazz -> clazz;
+            case ParameterizedType parameterizedType -> extractClass(parameterizedType.getRawType());
+            default -> throw new IllegalArgumentException("Unable to extract class from type %s".formatted(type));
+        };
+    }
+
+    public boolean isAssignableFrom(Type baseType, Type checkedType) {
+        return extractClass(baseType).isAssignableFrom(extractClass(checkedType));
     }
 }

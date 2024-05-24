@@ -35,7 +35,7 @@ in a failure to compile the fxml file
 
 Additionally, the controller class must be fully specified at compile time to ensure
 proper processing. This can be done by using the fx:controller attribute in the root of the
-view graph or by adding a <?controllerType > directive which specifies the fully qualified
+view graph or by adding a <?fx2jControllerType > directive which specifies the fully qualified
 name of the upper bounds for the controller class
 
 ## Usage

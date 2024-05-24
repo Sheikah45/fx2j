@@ -1,0 +1,5 @@
+<?import javafx.scene.layout.VBox?>
+<VBox xmlns:fx="http://javafx.com/fxml">
+    <fx:reference source="reference"/>
+    <fx:reference source="reference1"/>
+</VBox>

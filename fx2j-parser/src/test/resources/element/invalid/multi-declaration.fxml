@@ -1,0 +1,2 @@
+<?import java.lang.Double?>
+<Double xmlns:fx="http://javafx.com/fxml" fx:factory="single" fx:value="1.0" fx:constant="NEGATIVE_INFINITY"/>

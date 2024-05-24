@@ -1,0 +1,9 @@
+<?language javascript?>
+<?compile false?>
+<?compile true?>
+<?compile?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.layout.AnchorPane?>
+<?test test?>
+<?test?>
+<Button></Button>

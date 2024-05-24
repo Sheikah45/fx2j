@@ -1,4 +1,4 @@
-<?controllerType io.github.sheikah45.fx2j.processor.testcontroller.PublicController?>
+<?fx2jControllerType io.github.sheikah45.fx2j.processor.testcontroller.PublicController?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.layout.AnchorPane?>
 <AnchorPane xmlns:fx="http://javafx.com/fxml">
