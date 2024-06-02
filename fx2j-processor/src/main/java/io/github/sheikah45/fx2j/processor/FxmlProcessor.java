@@ -16,6 +16,7 @@ import io.github.sheikah45.fx2j.parser.attribute.ControllerAttribute;
 import io.github.sheikah45.fx2j.processor.internal.ObjectNodeProcessor;
 import io.github.sheikah45.fx2j.processor.internal.model.ObjectNodeCode;
 import io.github.sheikah45.fx2j.processor.internal.resolve.MethodResolver;
+import io.github.sheikah45.fx2j.processor.internal.resolve.ResolverContainer;
 import io.github.sheikah45.fx2j.processor.internal.resolve.TypeResolver;
 import io.github.sheikah45.fx2j.processor.internal.utils.JavaFileUtils;
 import io.github.sheikah45.fx2j.processor.internal.utils.StringUtils;
@@ -42,6 +43,7 @@ public class FxmlProcessor {
     public static final String BUILDER_PROVIDED_CONTROLLER_NAME = "builderProvidedController";
     public static final String BUILDER_PROVIDED_ROOT_NAME = "builderProvidedRoot";
 
+    private final ResolverContainer resolverContainer;
     private final TypeResolver typeResolver;
     private final MethodResolver methodResolver;
     private final String rootPackage;
@@ -71,8 +73,9 @@ public class FxmlProcessor {
                                             .map(FxmlProcessingInstruction.Import::value)
                                             .collect(Collectors.toSet());
 
-        typeResolver = new TypeResolver(imports, classLoader);
-        methodResolver = new MethodResolver(typeResolver);
+        resolverContainer = ResolverContainer.from(imports, classLoader);
+        typeResolver = resolverContainer.getTypeResolver();
+        methodResolver = resolverContainer.getMethodResolver();
 
         controllerClass = fxmlComponents.rootNode()
                                         .content()
@@ -94,8 +97,8 @@ public class FxmlProcessor {
                                         .orElse(Object.class);
 
         Path absoluteResourceRootPath = resourceRootPath.toAbsolutePath();
-        objectNodeCode = new ObjectNodeProcessor(fxmlComponents.rootNode(), controllerClass, typeResolver,
-                                                 methodResolver, absoluteFilePath,
+        objectNodeCode = new ObjectNodeProcessor(fxmlComponents.rootNode(), controllerClass, resolverContainer,
+                                                 absoluteFilePath,
                                                  absoluteResourceRootPath, this.rootPackage).getNodeCode();
         rootClass = typeResolver.wrapType(objectNodeCode.nodeClass());
 

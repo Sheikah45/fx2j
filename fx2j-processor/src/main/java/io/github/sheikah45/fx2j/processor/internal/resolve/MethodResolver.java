@@ -29,7 +29,7 @@ public class MethodResolver {
     private final Map<FieldCacheKey, Optional<Field>> fieldCache = new HashMap<>();
     private final Map<Type, String> defaultPropertyCache = new HashMap<>();
 
-    public MethodResolver(TypeResolver typeResolver) {
+    MethodResolver(TypeResolver typeResolver) {
         this.typeResolver = typeResolver;
     }
 

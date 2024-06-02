@@ -1,169 +1,154 @@
 package io.github.sheikah45.fx2j.processor.internal.resolve;
 
-import com.squareup.javapoet.CodeBlock;
-import io.github.sheikah45.fx2j.parser.attribute.InstancePropertyAttribute;
-import io.github.sheikah45.fx2j.parser.element.ElementContent;
-import io.github.sheikah45.fx2j.parser.element.InstancePropertyElement;
+import io.github.sheikah45.fx2j.parser.property.Expression;
 import io.github.sheikah45.fx2j.parser.property.Value;
 import io.github.sheikah45.fx2j.processor.FxmlProcessor;
+import io.github.sheikah45.fx2j.processor.internal.model.CodeValue;
 import io.github.sheikah45.fx2j.processor.internal.model.NamedArgValue;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Stream;
 
 public class ValueResolver {
-    private static final Map<Class<?>, Object> DEFAULTS_MAP = Map.of(byte.class, (byte) 0, short.class, (short) 0,
-                                                                     int.class, 0, long.class, 0L, float.class, 0.0f,
-                                                                     double.class, 0.0d, char.class, '\u0000',
-                                                                     boolean.class, false);
+    static final Map<Class<?>, Object> DEFAULTS_MAP = Map.of(byte.class, 0, short.class, 0, int.class, 0, long.class,
+                                                             0L, float.class, 0f, double.class, 0d, char.class,
+                                                             '\u0000', boolean.class, false);
 
     private final TypeResolver typeResolver;
     private final MethodResolver methodResolver;
+    private final NameResolver nameResolver;
 
-    public ValueResolver(TypeResolver typeResolver, MethodResolver methodResolver) {
+    ValueResolver(TypeResolver typeResolver, MethodResolver methodResolver, NameResolver nameResolver) {
         this.typeResolver = typeResolver;
         this.methodResolver = methodResolver;
+        this.nameResolver = nameResolver;
     }
 
-    public CodeBlock coerceValue(Type valueType, Value value) {
-        return switch (value) {
-            case Value.Location ignored ->
-                    throw new UnsupportedOperationException("Location resolution not yet supported");
-            case Value.Reference(String reference) -> {
-                Class<?> referenceClass = typeResolver.getStoredClassById(reference);
-                if (!typeResolver.isAssignableFrom(typeResolver.resolveClassFromType(valueType), referenceClass)) {
-                    throw new IllegalArgumentException("Cannot assign %s to %s".formatted(referenceClass, valueType));
-                }
-
-                yield CodeBlock.of("$L", reference);
+    public CodeValue coerceDefaultValue(NamedArgValue namedArgValue) {
+        String defaultValue = namedArgValue.defaultValue();
+        if (defaultValue.isBlank()) {
+            Object typeDefault = DEFAULTS_MAP.get(namedArgValue.parameterType());
+            if (typeDefault != null) {
+                return new CodeValue.Literal(typeDefault.toString());
             }
-            case Value.Resource(String resource) when valueType == String.class ->
-                    CodeBlock.of("$1L.getString($2S)", FxmlProcessor.RESOURCES_NAME, resource);
-            case Value.Literal(String val) -> coerceValue(valueType, val);
-            default -> throw new UnsupportedOperationException(
-                    "Cannot create type %s from %s".formatted(valueType, value));
-        };
+
+            return new CodeValue.Null();
+        }
+        return resolveCodeValue(namedArgValue.parameterType(), defaultValue);
     }
 
-    public CodeBlock coerceValue(Type valueType, String value) {
-        Class<?> rawType = typeResolver.resolveClassFromType(valueType);
+    public CodeValue resolveCodeValue(Type valueType, String value) {
+        if (typeResolver.isAssignableFrom(char.class, valueType) ||
+            typeResolver.isAssignableFrom(Character.class, valueType)) {
+            if (value.length() != 1) {
+                throw new IllegalArgumentException("Cannot coerce char from non single character string");
+            }
+
+            return new CodeValue.Char(value.charAt(0));
+        }
+
         if (typeResolver.isAssignableFrom(String.class, valueType)) {
-            return CodeBlock.of("$S", value);
+            return new CodeValue.String(value);
         }
 
         if (typeResolver.isArray(valueType)) {
             Type componentType = typeResolver.getComponentType(valueType);
-            CodeBlock arrayInitializer = Arrays.stream(value.split(","))
-                                               .map(componentString -> coerceValue(componentType, componentString))
-                                               .collect(CodeBlock.joining(", "));
-            return CodeBlock.of("new $T{$L}", valueType, arrayInitializer);
+            List<CodeValue> arrayValues = Arrays.stream(value.split(","))
+                                                .map(componentString -> resolveCodeValue(componentType,
+                                                                                         componentString))
+                                                .toList();
+            return new CodeValue.ArrayInitialization.Declared(componentType, arrayValues);
         }
 
         if (typeResolver.isPrimitive(valueType)) {
             Class<?> boxedType = typeResolver.wrapType(valueType);
             Method method = methodResolver.findMethod(boxedType, "parse%s".formatted(boxedType.getSimpleName()),
-                                                      String.class)
-                                          .orElse(null);
+                                                      String.class).orElse(null);
             if (method != null) {
                 try {
-                    return coerceUsingMethodResults(value, method, boxedType);
+                    return resolveCodeValue(method, value);
                 } catch (IllegalAccessException | InvocationTargetException ignored) {}
             }
         }
 
-        Class<?> boxedType = typeResolver.wrapType(rawType);
+        Class<?> boxedType = typeResolver.wrapType(valueType);
         Method method = methodResolver.findMethod(boxedType, "valueOf", String.class).orElse(null);
         if (method != null) {
             try {
-                return coerceUsingMethodResults(value, method, boxedType);
+                return resolveCodeValue(method, value);
             } catch (IllegalAccessException | InvocationTargetException ignored) {}
         }
 
         if (valueType == Object.class) {
-            return CodeBlock.of("$S", value);
+            return new CodeValue.String(value);
         }
 
         throw new UnsupportedOperationException("Cannot create type %s from %s".formatted(valueType, value));
     }
 
-    public CodeBlock coerceUsingMethodResults(String valueString, Method valueOfMethod, Type valueType)
+    public CodeValue resolveCodeValue(Method staticMethod, String valueString)
             throws IllegalAccessException, InvocationTargetException {
-        if (typeResolver.isPrimitive(valueType)) {
-            Object value = valueOfMethod.invoke(null, valueString);
-            if (Objects.equals(value, Double.POSITIVE_INFINITY) || Objects.equals(value, Float.POSITIVE_INFINITY)) {
-                return CodeBlock.of("$T.POSITIVE_INFINITY", valueType);
-            }
-
-            if (Objects.equals(value, Double.NEGATIVE_INFINITY) || Objects.equals(value, Float.NEGATIVE_INFINITY)) {
-                return CodeBlock.of("$T.NEGATIVE_INFINITY", valueType);
-            }
-
-            if (Objects.equals(value, Double.NaN) || Objects.equals(value, Float.NaN)) {
-                return CodeBlock.of("$T.NaN", valueType);
-            }
-
-            return CodeBlock.of("$L", value);
+        if (!Modifier.isStatic(staticMethod.getModifiers())) {
+            throw new IllegalArgumentException("Provided method is not static");
         }
 
-        if (typeResolver.isAssignableFrom(Enum.class, valueType)) {
-            Object value = valueOfMethod.invoke(null, valueString);
-            return CodeBlock.of("$T.$L", valueType, value);
+        Type[] parameterTypes = staticMethod.getGenericParameterTypes();
+        if (parameterTypes.length != 1 || !typeResolver.isAssignableFrom(String.class, parameterTypes[0])) {
+            throw new IllegalArgumentException(
+                    "Provided method %s does not accept only one argument of type string".formatted(staticMethod));
         }
 
-        return CodeBlock.of("$T.$L($S)", valueType, valueOfMethod.getName(), valueString);
+        Type valueType = staticMethod.getGenericReturnType();
+
+        return switch (staticMethod.invoke(null, valueString)) {
+            case null -> new CodeValue.Null();
+            case Double number when number == Double.POSITIVE_INFINITY ->
+                    new CodeValue.FieldAccess(new CodeValue.Type(Double.class), "POSITIVE_INFINITY");
+            case Double number when number == Double.NEGATIVE_INFINITY ->
+                    new CodeValue.FieldAccess(new CodeValue.Type(Double.class), "NEGATIVE_INFINITY");
+            case Double number when Objects.equals(number, Double.NaN) ->
+                    new CodeValue.FieldAccess(new CodeValue.Type(Double.class), "NaN");
+            case Float number when number == Float.POSITIVE_INFINITY ->
+                    new CodeValue.FieldAccess(new CodeValue.Type(Float.class), "POSITIVE_INFINITY");
+            case Float number when number == Float.NEGATIVE_INFINITY ->
+                    new CodeValue.FieldAccess(new CodeValue.Type(Float.class), "NEGATIVE_INFINITY");
+            case Float number when Objects.equals(number, Float.NaN) ->
+                    new CodeValue.FieldAccess(new CodeValue.Type(Float.class), "NaN");
+            case Enum<?> enumValue -> new CodeValue.Enum(enumValue);
+            case Object val when typeResolver.isPrimitive(val.getClass()) ->
+                    new CodeValue.Literal(staticMethod.invoke(null, valueString).toString());
+            default -> new CodeValue.MethodCall(new CodeValue.Type(valueType), staticMethod.getName(),
+                                                List.of(new CodeValue.String(valueString)));
+        };
     }
 
-    public Value extractSingleValue(ElementContent<?, ?> content) {
-        boolean multiSource = Stream.of(!content.attributes().isEmpty(), !content.elements().isEmpty(),
-                                        !(content.value() instanceof Value.Empty))
-                                    .filter(Boolean::booleanValue)
-                                    .count() > 1;
-        if (multiSource) {
-            throw new UnsupportedOperationException("Cannot resolve parameter value from multiple sources");
-        }
+    public CodeValue resolveCodeValue(Type valueType, Value value) {
+        return switch (value) {
+            case Value.Empty() -> new CodeValue.Null();
+            case Value.Reference(String reference) -> {
+                Type referenceType = nameResolver.resolveTypeById(reference);
+                if (!typeResolver.isAssignableFrom(typeResolver.resolveClassFromType(valueType), referenceType)) {
+                    throw new IllegalArgumentException("Cannot assign %s to %s".formatted(referenceType, valueType));
+                }
 
-        if (!content.attributes().isEmpty()) {
-            if (content.attributes().size() > 1) {
-                throw new UnsupportedOperationException("Cannot resolve parameter value from multiple attributes");
+                yield new CodeValue.Literal(reference);
             }
-
-            if (!(content.attributes().getFirst() instanceof InstancePropertyAttribute(
-                    String ignoredName, Value value
-            ))) {
-                throw new UnsupportedOperationException("Cannot resolve parameter value from non instance value");
-            }
-
-            return value;
-        }
-
-        if (!content.elements().isEmpty()) {
-            if (content.elements().size() > 1) {
-                throw new UnsupportedOperationException("Cannot resolve parameter value from multiple elements");
-            }
-
-            if (!(content.elements().getFirst() instanceof InstancePropertyElement(
-                    String ignoredName, ElementContent<?, ?> innerContent
-            ))) {
-                throw new UnsupportedOperationException(
-                        "Cannot resolve parameter value from non instance property element");
-            }
-
-            return extractSingleValue(innerContent);
-        }
-
-        return content.value();
-    }
-
-    public CodeBlock coerceDefaultValue(NamedArgValue namedArgValue) {
-        String defaultValue = namedArgValue.defaultValue();
-        if (defaultValue.isBlank()) {
-            return CodeBlock.of("$L", DEFAULTS_MAP.get(namedArgValue.parameterType()));
-        }
-        return coerceValue(namedArgValue.parameterType(), defaultValue);
+            case Value.Resource(String resource) when valueType == String.class ->
+                    new CodeValue.MethodCall(new CodeValue.Literal(FxmlProcessor.RESOURCES_NAME), "getString",
+                                             List.of(new CodeValue.String(resource)));
+            case Value.Literal(String val) -> resolveCodeValue(valueType, val);
+            case Value.Location ignored ->
+                    throw new UnsupportedOperationException("Location resolution not yet supported");
+            case Value.Resource ignored -> throw new UnsupportedOperationException(
+                    "Non string resource types not supported");
+            case Expression ignored ->
+                    throw new UnsupportedOperationException("Cannot resolve an expression to a code value");
+        };
     }
 }

@@ -19,12 +19,11 @@ public class TypeResolver {
 
     private final ClassLoader classLoader;
 
-    private final Map<String, Integer> idCounts = new HashMap<>();
-    private final Map<String, Type> idTypeMap = new HashMap<>();
     private final Set<String> importPrefixes = new HashSet<>();
     private final Map<String, Class<?>> resolvedClassesMap = new HashMap<>();
+    private final Map<Type, Class<?>> resolvedClassMap = new HashMap<>();
 
-    public TypeResolver(Set<String> imports, ClassLoader classLoader) {
+    TypeResolver(Set<String> imports, ClassLoader classLoader) {
         this.classLoader = classLoader;
         resolveImports(imports);
     }
@@ -78,20 +77,8 @@ public class TypeResolver {
         return clazz;
     }
 
-    public Class<?> resolveClassFromType(Type type) {
-        return switch (type) {
-            case Class<?> clazz -> clazz;
-            case ParameterizedType parameterizedType -> resolveClassFromType(parameterizedType.getRawType());
-            case WildcardType wildcardType -> {
-                Type[] upperBounds = wildcardType.getUpperBounds();
-                if (upperBounds.length != 1) {
-                    throw new IllegalArgumentException("Type does not have exactly one upper bound");
-                }
-                yield resolveClassFromType(upperBounds[0]);
-            }
-            case null, default ->
-                    throw new UnsupportedOperationException("Unable to get class from type %s".formatted(type));
-        };
+    public Class<?> unwrapType(Type type) {
+        return MethodType.methodType(resolveClassFromType(type)).unwrap().returnType();
     }
 
     public Type[] resolveUpperBoundTypeArguments(Type type) {
@@ -213,36 +200,13 @@ public class TypeResolver {
         return MethodType.methodType(resolveClassFromType(type)).wrap().returnType();
     }
 
+    public Class<?> resolveClassFromType(Type type) {
+        return resolvedClassMap.computeIfAbsent(type, this::resolveTypeUpperBound);
+    }
+
     public boolean isAssignableFrom(Type baseType, Type checkedType) {
-        return resolveClassFromType(baseType).isAssignableFrom(resolveClassFromType(checkedType));
-    }
-
-    public String getDeconflictedName(Type type) {
-        Class<?> clazz = resolveClassFromType(type);
-        String rawIdentifier = StringUtils.camelCase(clazz.getSimpleName());
-        Integer nameCount = idCounts.compute(rawIdentifier, (key, value) -> value == null ? 0 : value + 1);
-        String identifier = rawIdentifier + nameCount;
-        storeIdType(identifier, type);
-        return identifier;
-    }
-
-    public void storeIdType(String id, Type type) {
-        if (idTypeMap.containsKey(id)) {
-            throw new IllegalStateException("Multiple objects have the same id %s".formatted(id));
-        }
-
-        idTypeMap.put(id, type);
-    }
-
-    public Type getStoredTypeById(String id) {
-        return idTypeMap.computeIfAbsent(id, key -> {
-            throw new IllegalStateException("No type known for id %s".formatted(id));
-        });
-    }
-
-    public Class<?> getStoredClassById(String id) {
-        return resolveClassFromType(idTypeMap.computeIfAbsent(id, key -> {
-            throw new IllegalStateException("No type known for id %s".formatted(id));
-        }));
+        Class<?> baseClass = resolveClassFromType(baseType);
+        Class<?> checkedClass = resolveClassFromType(checkedType);
+        return baseClass.isAssignableFrom(checkedClass) || baseClass.isAssignableFrom(wrapType(checkedClass));
     }
 }
