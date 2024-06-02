@@ -260,7 +260,7 @@ class FxmlParserElementTest {
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
         assertEquals(new InstanceElement("VBox", new ElementContent<>(List.of(NAME_SPACE_ATTRIBUTE),
-                                                                      List.of(new InstancePropertyElement("elements",
+                                                                      List.of(new InstancePropertyElement("children",
                                                                                                           new ElementContent<>(
                                                                                                                   List.of(),
                                                                                                                   List.of(new InstanceElement(

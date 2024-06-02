@@ -247,7 +247,7 @@ public class FxmlParser {
             scriptSource = new ScriptSource.Inline(retrieveInnerText(element), charset);
         } else {
             if (!content.attributes().isEmpty() ||
-                !content.elements().isEmpty() && !(content.value() instanceof Value.Empty)) {
+                !content.elements().isEmpty() || !(content.value() instanceof Value.Empty)) {
                 throw new ParseException(
                         "fx:script with reference source cannot have any elements, attributes other than charset and source, or an inner value");
             }
