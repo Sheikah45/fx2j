@@ -4,7 +4,7 @@ import io.github.sheikah45.fx2j.parser.utils.StringUtils;
 
 import java.util.Objects;
 
-public record ReferenceElement(String source, Content content)
+public record ReferenceElement(String source, ElementContent<?, ?> content)
         implements ClassInstanceElement {
     public ReferenceElement {
         Objects.requireNonNull(content, "content cannot be null");

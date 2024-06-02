@@ -39,8 +39,14 @@ class FxmlParserInvalidElementTest {
     }
 
     @Test
-    void testNonCommonPropertyValue() {
-        Path filePath = FXML_ROOT.resolve("property-non-common-attribute.fxml");
+    void testNonAssignablePropertyAttribute() {
+        Path filePath = FXML_ROOT.resolve("property-non-assignable-attribute.fxml");
+        assertThrows(ParseException.class, () -> FxmlParser.readFxml(filePath));
+    }
+
+    @Test
+    void testNonAssignablePropertyChild() {
+        Path filePath = FXML_ROOT.resolve("property-non-assignable-child.fxml");
         assertThrows(ParseException.class, () -> FxmlParser.readFxml(filePath));
     }
 
@@ -63,8 +69,68 @@ class FxmlParserInvalidElementTest {
     }
 
     @Test
-    void testDefine() {
-        Path filePath = FXML_ROOT.resolve("define.fxml");
+    void testDefineValue() {
+        Path filePath = FXML_ROOT.resolve("define-value.fxml");
+        assertThrows(ParseException.class, () -> FxmlParser.readFxml(filePath));
+    }
+
+    @Test
+    void testDefineProperty() {
+        Path filePath = FXML_ROOT.resolve("define-property.fxml");
+        assertThrows(ParseException.class, () -> FxmlParser.readFxml(filePath));
+    }
+
+    @Test
+    void testDefineAttribute() {
+        Path filePath = FXML_ROOT.resolve("define-attribute.fxml");
+        assertThrows(ParseException.class, () -> FxmlParser.readFxml(filePath));
+    }
+
+    @Test
+    void testScriptSourceChild() {
+        Path filePath = FXML_ROOT.resolve("script-source-child.fxml");
+        assertThrows(ParseException.class, () -> FxmlParser.readFxml(filePath));
+    }
+
+    @Test
+    void testScriptSourceProperty() {
+        Path filePath = FXML_ROOT.resolve("script-source-property.fxml");
+        assertThrows(ParseException.class, () -> FxmlParser.readFxml(filePath));
+    }
+
+    @Test
+    void testScriptSourceValue() {
+        Path filePath = FXML_ROOT.resolve("script-source-value.fxml");
+        assertThrows(ParseException.class, () -> FxmlParser.readFxml(filePath));
+    }
+
+    @Test
+    void testScriptInlineChild() {
+        Path filePath = FXML_ROOT.resolve("script-inline-child.fxml");
+        assertThrows(ParseException.class, () -> FxmlParser.readFxml(filePath));
+    }
+
+    @Test
+    void testScriptInlineProperty() {
+        Path filePath = FXML_ROOT.resolve("script-inline-property.fxml");
+        assertThrows(ParseException.class, () -> FxmlParser.readFxml(filePath));
+    }
+
+    @Test
+    void testScriptInlineValue() {
+        Path filePath = FXML_ROOT.resolve("script-inline-value.fxml");
+        assertThrows(ParseException.class, () -> FxmlParser.readFxml(filePath));
+    }
+
+    @Test
+    void testStaticPropertyAttribute() {
+        Path filePath = FXML_ROOT.resolve("static-property-attribute.fxml");
+        assertThrows(ParseException.class, () -> FxmlParser.readFxml(filePath));
+    }
+
+    @Test
+    void testStaticPropertyChild() {
+        Path filePath = FXML_ROOT.resolve("static-property-child.fxml");
         assertThrows(ParseException.class, () -> FxmlParser.readFxml(filePath));
     }
 }

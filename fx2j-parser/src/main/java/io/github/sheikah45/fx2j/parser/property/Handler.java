@@ -2,7 +2,7 @@ package io.github.sheikah45.fx2j.parser.property;
 
 import io.github.sheikah45.fx2j.parser.utils.StringUtils;
 
-sealed public interface Handler extends Value {
+sealed public interface Handler {
     record Empty() implements Handler {}
     record Script(String value) implements Handler {
         public Script {

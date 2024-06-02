@@ -9,7 +9,6 @@ import io.github.sheikah45.fx2j.parser.attribute.InstancePropertyAttribute;
 import io.github.sheikah45.fx2j.parser.attribute.NameSpaceAttribute;
 import io.github.sheikah45.fx2j.parser.attribute.StaticPropertyAttribute;
 import io.github.sheikah45.fx2j.parser.element.DeclarationElement;
-import io.github.sheikah45.fx2j.parser.property.Concrete;
 import io.github.sheikah45.fx2j.parser.property.Expression;
 import io.github.sheikah45.fx2j.parser.property.Handler;
 import io.github.sheikah45.fx2j.parser.property.Value;
@@ -38,7 +37,7 @@ class FxmlParserPropertyTest {
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
 
-        List<FxmlAttribute> attributes = rootNode.content().attributes();
+        List<? extends FxmlAttribute> attributes = rootNode.content().attributes();
         assertEquals(List.of(new DefaultNameSpaceAttribute(URI.create(
                 "http://javafx.com/fxml"))), attributes);
     }
@@ -50,7 +49,7 @@ class FxmlParserPropertyTest {
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
 
-        List<FxmlAttribute> attributes = rootNode.content().attributes();
+        List<? extends FxmlAttribute> attributes = rootNode.content().attributes();
         assertEquals(List.of(new IdAttribute("box"), NAME_SPACE_ATTRIBUTE), attributes);
     }
 
@@ -61,7 +60,7 @@ class FxmlParserPropertyTest {
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
 
-        List<FxmlAttribute> attributes = rootNode.content().attributes();
+        List<? extends FxmlAttribute> attributes = rootNode.content().attributes();
         assertEquals(
                 List.of(new ControllerAttribute("io.github.sheikah45.fx2j.parser.FxmlParser"), NAME_SPACE_ATTRIBUTE),
                 attributes);
@@ -74,8 +73,8 @@ class FxmlParserPropertyTest {
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
 
-        List<FxmlAttribute> attributes = rootNode.content().attributes();
-        assertEquals(List.of(new InstancePropertyAttribute("alignment", new Concrete.Literal("TOP_RIGHT")),
+        List<? extends FxmlAttribute> attributes = rootNode.content().attributes();
+        assertEquals(List.of(new InstancePropertyAttribute("alignment", new Value.Literal("TOP_RIGHT")),
                              NAME_SPACE_ATTRIBUTE), attributes);
     }
 
@@ -86,8 +85,8 @@ class FxmlParserPropertyTest {
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
 
-        List<FxmlAttribute> attributes = rootNode.content().attributes();
-        assertEquals(List.of(new StaticPropertyAttribute("GridPane", "alignment", new Concrete.Literal("TOP_RIGHT")),
+        List<? extends FxmlAttribute> attributes = rootNode.content().attributes();
+        assertEquals(List.of(new StaticPropertyAttribute("GridPane", "alignment", new Value.Literal("TOP_RIGHT")),
                              NAME_SPACE_ATTRIBUTE),
                      attributes);
     }
@@ -99,9 +98,9 @@ class FxmlParserPropertyTest {
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
 
-        List<FxmlAttribute> attributes = rootNode.content().attributes();
+        List<? extends FxmlAttribute> attributes = rootNode.content().attributes();
         assertEquals(List.of(new StaticPropertyAttribute("javafx.scene.layout.GridPane", "alignment",
-                                                         new Concrete.Literal("TOP_RIGHT")), NAME_SPACE_ATTRIBUTE),
+                                                         new Value.Literal("TOP_RIGHT")), NAME_SPACE_ATTRIBUTE),
                      attributes);
     }
 
@@ -112,7 +111,7 @@ class FxmlParserPropertyTest {
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
 
-        List<FxmlAttribute> attributes = rootNode.content().attributes();
+        List<? extends FxmlAttribute> attributes = rootNode.content().attributes();
         assertEquals(
                 List.of(new EventHandlerAttribute("onScroll", new Handler.Script(
                         "java.lang.System.out.println('scrolled')")), NAME_SPACE_ATTRIBUTE),
@@ -126,8 +125,8 @@ class FxmlParserPropertyTest {
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
 
-        List<FxmlAttribute> attributes = rootNode.content().attributes();
-        assertEquals(List.of(new InstancePropertyAttribute("text", new Concrete.Empty()), NAME_SPACE_ATTRIBUTE),
+        List<? extends FxmlAttribute> attributes = rootNode.content().attributes();
+        assertEquals(List.of(new InstancePropertyAttribute("text", new Value.Literal("")), NAME_SPACE_ATTRIBUTE),
                      attributes);
     }
 
@@ -138,8 +137,8 @@ class FxmlParserPropertyTest {
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
 
-        List<FxmlAttribute> attributes = rootNode.content().attributes();
-        assertEquals(List.of(new InstancePropertyAttribute("url", new Concrete.Location(Path.of("test.png"))),
+        List<? extends FxmlAttribute> attributes = rootNode.content().attributes();
+        assertEquals(List.of(new InstancePropertyAttribute("url", new Value.Location(Path.of("test.png"))),
                              NAME_SPACE_ATTRIBUTE),
                      attributes);
     }
@@ -151,9 +150,9 @@ class FxmlParserPropertyTest {
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
 
-        List<FxmlAttribute> attributes = rootNode.content().attributes();
+        List<? extends FxmlAttribute> attributes = rootNode.content().attributes();
         assertEquals(
-                List.of(new InstancePropertyAttribute("text", new Concrete.Resource("test")), NAME_SPACE_ATTRIBUTE),
+                List.of(new InstancePropertyAttribute("text", new Value.Resource("test")), NAME_SPACE_ATTRIBUTE),
                      attributes);
     }
 
@@ -164,9 +163,9 @@ class FxmlParserPropertyTest {
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
 
-        List<FxmlAttribute> attributes = rootNode.content().attributes();
+        List<? extends FxmlAttribute> attributes = rootNode.content().attributes();
         assertEquals(
-                List.of(new InstancePropertyAttribute("text", new Concrete.Reference("test")), NAME_SPACE_ATTRIBUTE),
+                List.of(new InstancePropertyAttribute("text", new Value.Reference("test")), NAME_SPACE_ATTRIBUTE),
                      attributes);
     }
 
@@ -177,9 +176,9 @@ class FxmlParserPropertyTest {
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
 
-        List<FxmlAttribute> attributes = rootNode.content().attributes();
+        List<? extends FxmlAttribute> attributes = rootNode.content().attributes();
         assertEquals(
-                List.of(new InstancePropertyAttribute("text", new Concrete.Literal("$test")), NAME_SPACE_ATTRIBUTE),
+                List.of(new InstancePropertyAttribute("text", new Value.Literal("$test")), NAME_SPACE_ATTRIBUTE),
                      attributes);
     }
 
@@ -190,7 +189,7 @@ class FxmlParserPropertyTest {
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
 
-        List<FxmlAttribute> attributes = rootNode.content().attributes();
+        List<? extends FxmlAttribute> attributes = rootNode.content().attributes();
         assertEquals(List.of(new InstancePropertyAttribute("text", new Expression.PropertyRead(
                 new Expression.Variable("test"), "text")), NAME_SPACE_ATTRIBUTE), attributes);
     }
@@ -202,7 +201,7 @@ class FxmlParserPropertyTest {
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
 
-        List<FxmlAttribute> attributes = rootNode.content().attributes();
+        List<? extends FxmlAttribute> attributes = rootNode.content().attributes();
         assertEquals(List.of(new InstancePropertyAttribute("width", new Expression.Add(new Expression.Add(
                                      new Expression.PropertyRead(
                                              new Expression.PropertyRead(new Expression.Variable("test"), "text"), "length"),
@@ -221,7 +220,7 @@ class FxmlParserPropertyTest {
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
 
-        List<FxmlAttribute> attributes = rootNode.content().attributes();
+        List<? extends FxmlAttribute> attributes = rootNode.content().attributes();
         assertEquals(List.of(new EventHandlerAttribute("onScroll", new Handler.Reference("scroller")),
                              NAME_SPACE_ATTRIBUTE),
                      attributes);
@@ -234,7 +233,7 @@ class FxmlParserPropertyTest {
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
 
-        List<FxmlAttribute> attributes = rootNode.content().attributes();
+        List<? extends FxmlAttribute> attributes = rootNode.content().attributes();
         assertEquals(List.of(new EventHandlerAttribute("onScroll", new Handler.Empty()), NAME_SPACE_ATTRIBUTE),
                      attributes);
     }
@@ -246,7 +245,7 @@ class FxmlParserPropertyTest {
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
 
-        List<FxmlAttribute> attributes = rootNode.content().attributes();
+        List<? extends FxmlAttribute> attributes = rootNode.content().attributes();
         assertEquals(List.of(new EventHandlerAttribute("onScroll", new Handler.Method("scroll")),
                              NAME_SPACE_ATTRIBUTE), attributes);
     }

@@ -1,4 +1,4 @@
-package io.github.sheikah45.fx2j.processor.internal;
+package io.github.sheikah45.fx2j.processor.internal.model;
 
 import javax.tools.SimpleJavaFileObject;
 import java.net.URI;

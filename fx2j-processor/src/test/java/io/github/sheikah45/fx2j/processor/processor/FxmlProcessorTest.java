@@ -11,6 +11,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.SplitPane;
+import javafx.scene.control.Tab;
 import javafx.scene.control.TableView;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.GridPane;
@@ -28,6 +29,7 @@ import java.util.PropertyResourceBundle;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -107,6 +109,13 @@ class FxmlProcessorTest extends AbstractProcessorTest {
     }
 
     @Test
+    void testDefaultPropertyElement() throws Exception {
+        Tab root = buildAndRetrieveRoot(PROCESS_FXML.resolve("default-property-element.fxml"));
+        assertInstanceOf(Button.class, root.getContent());
+        ;
+    }
+
+    @Test
     void testPropertyAttribute() throws Exception {
         AnchorPane root = buildAndRetrieveRoot(PROCESS_FXML.resolve("attribute-property.fxml"));
         List<Node> children = root.getChildren();
@@ -131,6 +140,12 @@ class FxmlProcessorTest extends AbstractProcessorTest {
     @Test
     void testBasicList() throws Exception {
         List<Object> root = buildAndRetrieveRoot(PROCESS_FXML.resolve("basic-list.fxml"));
+        assertEquals(List.of("item1", 2), root);
+    }
+
+    @Test
+    void testObservableList() throws Exception {
+        ObservableList<Object> root = buildAndRetrieveRoot(PROCESS_FXML.resolve("observable-list.fxml"));
         assertEquals(List.of("item1", 2), root);
     }
 

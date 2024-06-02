@@ -1,0 +1,7 @@
+<?import javafx.collections.FXCollections?>
+<?import java.lang.Integer?>
+<?import java.lang.String?>
+<FXCollections xmlns:fx="http://javafx.com/fxml" fx:factory="observableArrayList">
+    <String fx:value="item1"/>
+    <Integer fx:value="2"/>
+</FXCollections>

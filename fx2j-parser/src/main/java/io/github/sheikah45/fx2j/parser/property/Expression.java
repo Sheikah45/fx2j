@@ -11,7 +11,7 @@ import org.antlr.v4.runtime.CommonTokenStream;
 import java.util.List;
 import java.util.Objects;
 
-sealed public interface Expression extends Value.Single {
+sealed public interface Expression extends Value {
     static Expression parse(String expression) {
         CodePointCharStream charStream = CharStreams.fromString(expression);
         BindExpressionLexer expressionLexer = new BindExpressionLexer(charStream);
@@ -24,7 +24,7 @@ sealed public interface Expression extends Value.Single {
         public PropertyRead {
             Objects.requireNonNull(expression, "expression cannot be null");
             if (StringUtils.isNullOrBlank(property)) {
-                throw new IllegalArgumentException("property cannot be blank or null");
+                throw new IllegalArgumentException("propertyName cannot be blank or null");
             }
         }
     }

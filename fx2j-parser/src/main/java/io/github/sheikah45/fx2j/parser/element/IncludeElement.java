@@ -4,7 +4,7 @@ import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.util.Objects;
 
-public record IncludeElement(Path source, Path resources, Charset charset, Content content)
+public record IncludeElement(Path source, Path resources, Charset charset, ElementContent<?, ?> content)
         implements ClassInstanceElement {
     public IncludeElement {
         Objects.requireNonNull(source, "source cannot be null");

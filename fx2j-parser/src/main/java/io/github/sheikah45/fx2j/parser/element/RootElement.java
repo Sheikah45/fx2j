@@ -4,7 +4,7 @@ import io.github.sheikah45.fx2j.parser.utils.StringUtils;
 
 import java.util.Objects;
 
-public record RootElement(String type, Content content) implements DeclarationElement {
+public record RootElement(String type, ElementContent<?, ?> content) implements DeclarationElement {
     public RootElement {
         Objects.requireNonNull(content, "content cannot be null");
         if (StringUtils.isNullOrBlank(type)) {
