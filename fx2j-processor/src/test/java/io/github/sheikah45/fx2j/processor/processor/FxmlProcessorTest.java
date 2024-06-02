@@ -112,7 +112,6 @@ class FxmlProcessorTest extends AbstractProcessorTest {
     void testDefaultPropertyElement() throws Exception {
         Tab root = buildAndRetrieveRoot(PROCESS_FXML.resolve("default-property-element.fxml"));
         assertInstanceOf(Button.class, root.getContent());
-        ;
     }
 
     @Test

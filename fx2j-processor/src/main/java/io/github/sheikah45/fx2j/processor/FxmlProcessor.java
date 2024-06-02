@@ -60,7 +60,6 @@ public class FxmlProcessor {
      * @param rootPackage      The root package for the generated Java code.
      * @param classLoader      The class loader to use for resolving imported classes.
      */
-    @SuppressWarnings("unchecked")
     public FxmlProcessor(Path filePath, Path resourceRootPath, String rootPackage, ClassLoader classLoader) {
         this.rootPackage = rootPackage;
         Path absoluteFilePath = filePath.toAbsolutePath();
@@ -91,7 +90,7 @@ public class FxmlProcessor {
                                                                         custom.name()))
                                                                 .map(FxmlProcessingInstruction.Custom::value)
                                                                 .findFirst())
-                                        .map(typeName -> (Class<Object>) typeResolver.resolve(typeName))
+                                        .map(typeResolver::resolve)
                                         .orElse(Object.class);
 
         Path absoluteResourceRootPath = resourceRootPath.toAbsolutePath();

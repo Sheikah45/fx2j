@@ -706,7 +706,7 @@ public class ObjectNodeProcessor {
 
     private void processCopyInitialization(String source) {
         objectType = typeResolver.getStoredClassById(source);
-        ;
+
         if (!methodResolver.hasCopyConstructor(objectType)) {
             throw new IllegalArgumentException("No copy constructor found for class %s".formatted(objectType));
         }
