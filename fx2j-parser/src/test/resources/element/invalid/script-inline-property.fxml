@@ -1,0 +1,10 @@
+<?language javascript?>
+
+<?import javafx.scene.layout.VBox?>
+<VBox xmlns:fx="http://javafx.com/fxml">
+    <fx:script text="">
+        function handleButtonAction(event) {
+            java.lang.System.out.println('You clicked me!');
+        }
+    </fx:script>
+</VBox>

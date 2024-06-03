@@ -7,8 +7,12 @@ import java.nio.file.Path;
 import java.util.Objects;
 
 public sealed interface ScriptSource {
-    record Inline(String value) implements ScriptSource {
+
+    Charset charset();
+
+    record Inline(String value, Charset charset) implements ScriptSource {
         public Inline {
+            Objects.requireNonNull(charset, "charset cannot be null");
             if (StringUtils.isNullOrBlank(value)) {
                 throw new IllegalArgumentException("source cannot be blank or null");
             }
@@ -16,6 +20,7 @@ public sealed interface ScriptSource {
     }
     record Reference(Path source, Charset charset) implements ScriptSource {
         public Reference {
+            Objects.requireNonNull(charset, "charset cannot be null");
             Objects.requireNonNull(source, "source cannot be null");
         }
     }

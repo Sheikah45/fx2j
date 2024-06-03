@@ -82,7 +82,7 @@ public class BindExpressionVisitorImpl extends AbstractParseTreeVisitor<Expressi
     @Override
     public Expression visitStringLiteral(BindExpressionParser.StringLiteralContext ctx) {
         String text = ctx.getText();
-        return new Expression.Str(text.substring(1, text.length() - 1));
+        return new Expression.String(text.substring(1, text.length() - 1));
     }
 
     @Override

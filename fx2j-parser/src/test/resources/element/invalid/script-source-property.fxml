@@ -1,0 +1,6 @@
+<?language javascript?>
+
+<?import javafx.scene.layout.VBox?>
+<VBox xmlns:fx="http://javafx.com/fxml">
+    <fx:script source="test.js" text=""/>
+</VBox>

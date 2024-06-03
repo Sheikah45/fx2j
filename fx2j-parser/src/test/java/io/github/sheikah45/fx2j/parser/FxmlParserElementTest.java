@@ -2,11 +2,11 @@ package io.github.sheikah45.fx2j.parser;
 
 import io.github.sheikah45.fx2j.parser.attribute.InstancePropertyAttribute;
 import io.github.sheikah45.fx2j.parser.attribute.NameSpaceAttribute;
-import io.github.sheikah45.fx2j.parser.element.ClassInstanceElement;
 import io.github.sheikah45.fx2j.parser.element.ConstantElement;
 import io.github.sheikah45.fx2j.parser.element.CopyElement;
 import io.github.sheikah45.fx2j.parser.element.DeclarationElement;
 import io.github.sheikah45.fx2j.parser.element.DefineElement;
+import io.github.sheikah45.fx2j.parser.element.ElementContent;
 import io.github.sheikah45.fx2j.parser.element.FactoryElement;
 import io.github.sheikah45.fx2j.parser.element.FxmlElement;
 import io.github.sheikah45.fx2j.parser.element.IncludeElement;
@@ -18,7 +18,6 @@ import io.github.sheikah45.fx2j.parser.element.ScriptElement;
 import io.github.sheikah45.fx2j.parser.element.ScriptSource;
 import io.github.sheikah45.fx2j.parser.element.StaticPropertyElement;
 import io.github.sheikah45.fx2j.parser.element.ValueElement;
-import io.github.sheikah45.fx2j.parser.property.Concrete;
 import io.github.sheikah45.fx2j.parser.property.Value;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
@@ -37,13 +36,10 @@ class FxmlParserElementTest {
 
     private static final NameSpaceAttribute NAME_SPACE_ATTRIBUTE = new NameSpaceAttribute("fx", URI.create(
             "http://javafx.com/fxml"));
-    private static final ClassInstanceElement.Content NAME_SPACE_ONLY_CONTENT = new ClassInstanceElement.Content(
-            List.of(NAME_SPACE_ATTRIBUTE),
-            List.of(),
-            new Concrete.Empty());
-    private static final ClassInstanceElement.Content EMPTY_CONTENT = new ClassInstanceElement.Content(List.of(),
-                                                                                                      List.of(),
-                                                                                                       new Concrete.Empty());
+    private static final ElementContent<?, ?> NAME_SPACE_ONLY_CONTENT = new ElementContent<>(
+            List.of(NAME_SPACE_ATTRIBUTE), List.of(), new Value.Empty());
+    private static final ElementContent<?, ?> EMPTY_CONTENT = new ElementContent<>(List.of(), List.of(),
+                                                                                   new Value.Empty());
     private static final Path FXML_ROOT = Path.of("src/test/resources/element/valid");
 
     @Test
@@ -68,13 +64,11 @@ class FxmlParserElementTest {
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
 
-        List<FxmlElement> children = rootNode.content().children();
+        List<? extends FxmlElement> children = rootNode.content().elements();
         assertEquals(2, children.size());
 
         FxmlElement first = children.getFirst();
-        assertEquals(new IncludeElement(Path.of("included1.fxml"), null, StandardCharsets.UTF_8,
-                                        EMPTY_CONTENT),
-                     first);
+        assertEquals(new IncludeElement(Path.of("included1.fxml"), null, StandardCharsets.UTF_8, EMPTY_CONTENT), first);
 
         FxmlElement last = children.getLast();
         assertEquals(new IncludeElement(Path.of("included2.fxml"), Path.of("resource"), StandardCharsets.US_ASCII,
@@ -88,7 +82,7 @@ class FxmlParserElementTest {
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
 
-        List<FxmlElement> children = rootNode.content().children();
+        List<? extends FxmlElement> children = rootNode.content().elements();
         assertEquals(2, children.size());
 
         FxmlElement first = children.getFirst();
@@ -105,7 +99,7 @@ class FxmlParserElementTest {
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
 
-        List<FxmlElement> children = rootNode.content().children();
+        List<? extends FxmlElement> children = rootNode.content().elements();
         assertEquals(2, children.size());
 
         FxmlElement first = children.getFirst();
@@ -122,7 +116,7 @@ class FxmlParserElementTest {
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
 
-        List<FxmlElement> children = rootNode.content().children();
+        List<? extends FxmlElement> children = rootNode.content().elements();
         assertEquals(1, children.size());
 
         FxmlElement defined = children.getFirst();
@@ -139,12 +133,30 @@ class FxmlParserElementTest {
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
 
-        List<FxmlElement> children = rootNode.content().children();
+        List<? extends FxmlElement> children = rootNode.content().elements();
         assertEquals(1, children.size());
 
         assertEquals(new ScriptElement(new ScriptSource.Inline(
-                             "function handleButtonAction(event) { java.lang.System.out.println('You clicked me!'); }")),
-                     children.getFirst());
+                "function handleButtonAction(event) { java.lang.System.out.println('You clicked me!'); }",
+                StandardCharsets.UTF_8)), children.getFirst());
+    }
+
+    @Test
+    void testScriptInlineWithCharset() {
+        Path filePath = FXML_ROOT.resolve("script-inline-with-charset.fxml");
+        FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
+
+        assertEquals(new FxmlProcessingInstruction.Language("javascript"),
+                     fxmlComponents.rootProcessingInstructions().getFirst());
+
+        DeclarationElement rootNode = fxmlComponents.rootNode();
+
+        List<? extends FxmlElement> children = rootNode.content().elements();
+        assertEquals(1, children.size());
+
+        assertEquals(new ScriptElement(new ScriptSource.Inline(
+                "function handleButtonAction(event) { java.lang.System.out.println('You clicked me!'); }",
+                StandardCharsets.US_ASCII)), children.getFirst());
     }
 
     @Test
@@ -157,10 +169,27 @@ class FxmlParserElementTest {
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
 
-        List<FxmlElement> children = rootNode.content().children();
+        List<? extends FxmlElement> children = rootNode.content().elements();
         assertEquals(1, children.size());
 
         assertEquals(new ScriptElement(new ScriptSource.Reference(Path.of("test.js"), StandardCharsets.UTF_8)),
+                     children.getFirst());
+    }
+
+    @Test
+    void testScriptReferenceWithCharset() {
+        Path filePath = FXML_ROOT.resolve("script-reference-with-charset.fxml");
+        FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
+
+        assertEquals(new FxmlProcessingInstruction.Language("javascript"),
+                     fxmlComponents.rootProcessingInstructions().getFirst());
+
+        DeclarationElement rootNode = fxmlComponents.rootNode();
+
+        List<? extends FxmlElement> children = rootNode.content().elements();
+        assertEquals(1, children.size());
+
+        assertEquals(new ScriptElement(new ScriptSource.Reference(Path.of("test.js"), StandardCharsets.US_ASCII)),
                      children.getFirst());
     }
 
@@ -170,12 +199,14 @@ class FxmlParserElementTest {
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
-        assertEquals(new InstanceElement("VBox", new ClassInstanceElement.Content(List.of(NAME_SPACE_ATTRIBUTE),
-                                                                                  List.of(new InstancePropertyElement(
-                                                                                          "alignment",
-                                                                                          new Concrete.Literal(
-                                                                                                  "TOP_RIGHT"))),
-                                                                                  new Concrete.Empty())), rootNode);
+        assertEquals(new InstanceElement("VBox", new ElementContent<>(List.of(NAME_SPACE_ATTRIBUTE),
+                                                                      List.of(new InstancePropertyElement("alignment",
+                                                                                                          new ElementContent<>(
+                                                                                                                  List.of(),
+                                                                                                                  List.of(),
+                                                                                                                  new Value.Literal(
+                                                                                                                          "TOP_RIGHT")))),
+                                                                      new Value.Empty())), rootNode);
     }
 
     @Test
@@ -184,10 +215,8 @@ class FxmlParserElementTest {
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
-        assertEquals(
-                new InstanceElement("Label", new ClassInstanceElement.Content(List.of(NAME_SPACE_ATTRIBUTE), List.of(),
-                                                                              new Concrete.Literal("test"))),
-                     rootNode);
+        assertEquals(new InstanceElement("Label", new ElementContent<>(List.of(NAME_SPACE_ATTRIBUTE), List.of(),
+                                                                       new Value.Literal("test"))), rootNode);
     }
 
     @Test
@@ -196,13 +225,14 @@ class FxmlParserElementTest {
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
-        assertEquals(new InstanceElement("Label", new ClassInstanceElement.Content(List.of(NAME_SPACE_ATTRIBUTE),
-                                                                                   List.of(new InstancePropertyElement(
-                                                                                           "alignment",
-                                                                                           new Concrete.Literal(
-                                                                                                   "TOP_LEFT"))),
-                                                                                   new Concrete.Literal("test2"))),
-                     rootNode);
+        assertEquals(new InstanceElement("Label", new ElementContent<>(List.of(NAME_SPACE_ATTRIBUTE),
+                                                                       List.of(new InstancePropertyElement("alignment",
+                                                                                                           new ElementContent<>(
+                                                                                                                   List.of(),
+                                                                                                                   List.of(),
+                                                                                                                   new Value.Literal(
+                                                                                                                           "TOP_LEFT")))),
+                                                                       new Value.Literal("test2"))), rootNode);
     }
 
     @Test
@@ -211,16 +241,16 @@ class FxmlParserElementTest {
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
-        assertEquals(new InstanceElement("VBox", new ClassInstanceElement.Content(List.of(NAME_SPACE_ATTRIBUTE),
-                                                                                  List.of(new InstancePropertyElement(
-                                                                                          "properties",
-                                                                                          new Concrete.Attribute(
-                                                                                                  new InstancePropertyAttribute(
-                                                                                                          "foo",
-                                                                                                          new Concrete.Literal(
-                                                                                                                  "123"))))),
-                                                                                  new Concrete.Empty())),
-                     rootNode);
+        assertEquals(new InstanceElement("VBox", new ElementContent<>(List.of(NAME_SPACE_ATTRIBUTE),
+                                                                      List.of(new InstancePropertyElement("properties",
+                                                                                                          new ElementContent<>(
+                                                                                                                  List.of(new InstancePropertyAttribute(
+                                                                                                                          "foo",
+                                                                                                                          new Value.Literal(
+                                                                                                                                  "123"))),
+                                                                                                                  List.of(),
+                                                                                                                  new Value.Empty()))),
+                                                                      new Value.Empty())), rootNode);
     }
 
     @Test
@@ -229,14 +259,15 @@ class FxmlParserElementTest {
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
-        assertEquals(new InstanceElement("VBox", new ClassInstanceElement.Content(List.of(NAME_SPACE_ATTRIBUTE),
-                                                                                  List.of(new InstancePropertyElement(
-                                                                                          "children",
-                                                                                          new Concrete.Element(
-                                                                                                  new InstanceElement(
-                                                                                                          "VBox",
-                                                                                                          EMPTY_CONTENT)))),
-                                                                                  new Concrete.Empty())), rootNode);
+        assertEquals(new InstanceElement("VBox", new ElementContent<>(List.of(NAME_SPACE_ATTRIBUTE),
+                                                                      List.of(new InstancePropertyElement("children",
+                                                                                                          new ElementContent<>(
+                                                                                                                  List.of(),
+                                                                                                                  List.of(new InstanceElement(
+                                                                                                                          "VBox",
+                                                                                                                          EMPTY_CONTENT)),
+                                                                                                                  new Value.Empty()))),
+                                                                      new Value.Empty())), rootNode);
     }
 
     @Test
@@ -245,22 +276,19 @@ class FxmlParserElementTest {
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
-        assertEquals(new InstanceElement("VBox", new ClassInstanceElement.Content(List.of(NAME_SPACE_ATTRIBUTE),
-                                                                                  List.of(new InstancePropertyElement(
-                                                                                          "alignment",
-                                                                                          new Value.Multi(
-                                                                                                  List.of(new Concrete.Attribute(
-                                                                                                                  new InstancePropertyAttribute(
+        assertEquals(new InstanceElement("VBox", new ElementContent<>(List.of(NAME_SPACE_ATTRIBUTE),
+                                                                      List.of(new InstancePropertyElement("alignment",
+                                                                                                          new ElementContent<>(
+                                                                                                                  List.of(new InstancePropertyAttribute(
                                                                                                                           "value",
-                                                                                                                          new Concrete.Literal(
+                                                                                                                          new Value.Literal(
                                                                                                                                   "TOP_RIGHT"))),
-                                                                                                          new Concrete.Element(
-                                                                                                                  new InstanceElement(
+                                                                                                                  List.of(new InstanceElement(
                                                                                                                           "Label",
                                                                                                                           EMPTY_CONTENT)),
-                                                                                                          new Concrete.Literal(
-                                                                                                                  "text"))))),
-                                                                                  new Concrete.Empty())), rootNode);
+                                                                                                                  new Value.Literal(
+                                                                                                                          "text")))),
+                                                                      new Value.Empty())), rootNode);
     }
 
     @Test
@@ -269,12 +297,13 @@ class FxmlParserElementTest {
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
-        assertEquals(new InstanceElement("VBox", new ClassInstanceElement.Content(List.of(NAME_SPACE_ATTRIBUTE),
-                                                                                  List.of(new InstancePropertyElement(
-                                                                                          "alignment",
-                                                                                          new Concrete.Empty())),
-                                                                                  new Concrete.Empty())),
-                     rootNode);
+        assertEquals(new InstanceElement("VBox", new ElementContent<>(List.of(NAME_SPACE_ATTRIBUTE),
+                                                                      List.of(new InstancePropertyElement("alignment",
+                                                                                                          new ElementContent<>(
+                                                                                                                  List.of(),
+                                                                                                                  List.of(),
+                                                                                                                  new Value.Empty()))),
+                                                                      new Value.Empty())), rootNode);
     }
 
     @Test
@@ -283,12 +312,15 @@ class FxmlParserElementTest {
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
-        assertEquals(new InstanceElement("VBox", new ClassInstanceElement.Content(List.of(NAME_SPACE_ATTRIBUTE),
-                                                                                  List.of(new StaticPropertyElement(
-                                                                                          "GridPane", "alignment",
-                                                                                          new Concrete.Literal(
-                                                                                                  "TOP_RIGHT"))),
-                                                                                  new Concrete.Empty())), rootNode);
+        assertEquals(new InstanceElement("VBox", new ElementContent<>(List.of(NAME_SPACE_ATTRIBUTE),
+                                                                      List.of(new StaticPropertyElement("GridPane",
+                                                                                                        "alignment",
+                                                                                                        new ElementContent<>(
+                                                                                                                List.of(),
+                                                                                                                List.of(),
+                                                                                                                new Value.Literal(
+                                                                                                                        "TOP_RIGHT")))),
+                                                                      new Value.Empty())), rootNode);
     }
 
     @Test
@@ -297,13 +329,14 @@ class FxmlParserElementTest {
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
-        assertEquals(new InstanceElement("VBox", new ClassInstanceElement.Content(List.of(NAME_SPACE_ATTRIBUTE),
-                                                                                  List.of(new StaticPropertyElement(
-                                                                                          "javafx.scene.layout.GridPane",
-                                                                                          "alignment",
-                                                                                          new Concrete.Literal(
-                                                                                                  "TOP_RIGHT"))),
-                                                                                  new Concrete.Empty())), rootNode);
+        assertEquals(new InstanceElement("VBox", new ElementContent<>(List.of(NAME_SPACE_ATTRIBUTE),
+                                                                      List.of(new StaticPropertyElement(
+                                                                              "javafx.scene.layout.GridPane",
+                                                                              "alignment",
+                                                                              new ElementContent<>(List.of(), List.of(),
+                                                                                                   new Value.Literal(
+                                                                                                           "TOP_RIGHT")))),
+                                                                      new Value.Empty())), rootNode);
     }
 
     @Test
@@ -321,7 +354,7 @@ class FxmlParserElementTest {
         FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
 
         DeclarationElement rootNode = fxmlComponents.rootNode();
-        assertEquals(new ValueElement("Double", new Concrete.Literal("1"), NAME_SPACE_ONLY_CONTENT), rootNode);
+        assertEquals(new ValueElement("Double", "1", NAME_SPACE_ONLY_CONTENT), rootNode);
     }
 
     @Test

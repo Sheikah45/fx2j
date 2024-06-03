@@ -4,7 +4,7 @@ import io.github.sheikah45.fx2j.parser.utils.StringUtils;
 
 import java.util.Objects;
 
-public record FactoryElement(String factoryClassName, String factoryMethod, Content content)
+public record FactoryElement(String factoryClassName, String factoryMethod, ElementContent<?, ?> content)
         implements DeclarationElement {
     public FactoryElement {
         Objects.requireNonNull(content, "content cannot be null");

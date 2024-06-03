@@ -4,7 +4,7 @@ import io.github.sheikah45.fx2j.parser.utils.StringUtils;
 
 import java.util.Objects;
 
-public record InstanceElement(String className, Content content)
+public record InstanceElement(String className, ElementContent<?, ?> content)
         implements DeclarationElement {
     public InstanceElement {
         Objects.requireNonNull(content, "content cannot be null");

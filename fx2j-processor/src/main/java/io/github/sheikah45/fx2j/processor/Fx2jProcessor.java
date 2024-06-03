@@ -11,7 +11,7 @@ import com.squareup.javapoet.TypeSpec;
 import com.squareup.javapoet.WildcardTypeName;
 import io.github.sheikah45.fx2j.api.Fx2jBuilder;
 import io.github.sheikah45.fx2j.api.Fx2jBuilderFinder;
-import io.github.sheikah45.fx2j.processor.internal.StringJavaFileObject;
+import io.github.sheikah45.fx2j.processor.internal.model.StringJavaFileObject;
 import io.github.sheikah45.fx2j.processor.internal.utils.JavaFileUtils;
 
 import javax.lang.model.element.Modifier;

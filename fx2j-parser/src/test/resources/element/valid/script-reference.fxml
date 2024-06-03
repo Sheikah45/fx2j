@@ -2,5 +2,5 @@
 
 <?import javafx.scene.layout.VBox?>
 <VBox xmlns:fx="http://javafx.com/fxml">
-    <fx:script source="test.js" charset="utf-8"/>
+    <fx:script source="test.js"/>
 </VBox>

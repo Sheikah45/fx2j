@@ -2,16 +2,19 @@ package io.github.sheikah45.fx2j.processor.internal;
 
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.CodeBlock;
-import io.github.sheikah45.fx2j.parser.ParseException;
+import io.github.sheikah45.fx2j.parser.attribute.AssignableAttribute;
 import io.github.sheikah45.fx2j.parser.attribute.EventHandlerAttribute;
 import io.github.sheikah45.fx2j.parser.attribute.FxmlAttribute;
 import io.github.sheikah45.fx2j.parser.attribute.IdAttribute;
 import io.github.sheikah45.fx2j.parser.attribute.InstancePropertyAttribute;
+import io.github.sheikah45.fx2j.parser.attribute.SpecialAttribute;
 import io.github.sheikah45.fx2j.parser.attribute.StaticPropertyAttribute;
+import io.github.sheikah45.fx2j.parser.element.AssignableElement;
 import io.github.sheikah45.fx2j.parser.element.ClassInstanceElement;
 import io.github.sheikah45.fx2j.parser.element.ConstantElement;
 import io.github.sheikah45.fx2j.parser.element.CopyElement;
 import io.github.sheikah45.fx2j.parser.element.DefineElement;
+import io.github.sheikah45.fx2j.parser.element.ElementContent;
 import io.github.sheikah45.fx2j.parser.element.FactoryElement;
 import io.github.sheikah45.fx2j.parser.element.IncludeElement;
 import io.github.sheikah45.fx2j.parser.element.InstanceElement;
@@ -21,18 +24,24 @@ import io.github.sheikah45.fx2j.parser.element.RootElement;
 import io.github.sheikah45.fx2j.parser.element.ScriptElement;
 import io.github.sheikah45.fx2j.parser.element.StaticPropertyElement;
 import io.github.sheikah45.fx2j.parser.element.ValueElement;
-import io.github.sheikah45.fx2j.parser.property.Concrete;
 import io.github.sheikah45.fx2j.parser.property.Expression;
 import io.github.sheikah45.fx2j.parser.property.FxmlProperty;
 import io.github.sheikah45.fx2j.parser.property.Handler;
 import io.github.sheikah45.fx2j.parser.property.Value;
 import io.github.sheikah45.fx2j.processor.FxmlProcessor;
 import io.github.sheikah45.fx2j.processor.ProcessorException;
+import io.github.sheikah45.fx2j.processor.internal.model.CodeValue;
+import io.github.sheikah45.fx2j.processor.internal.model.ExpressionResult;
 import io.github.sheikah45.fx2j.processor.internal.model.NamedArgValue;
 import io.github.sheikah45.fx2j.processor.internal.model.ObjectNodeCode;
-import io.github.sheikah45.fx2j.processor.internal.utils.StringUtils;
+import io.github.sheikah45.fx2j.processor.internal.resolve.ExpressionResolver;
+import io.github.sheikah45.fx2j.processor.internal.resolve.MethodResolver;
+import io.github.sheikah45.fx2j.processor.internal.resolve.NameResolver;
+import io.github.sheikah45.fx2j.processor.internal.resolve.ResolverContainer;
+import io.github.sheikah45.fx2j.processor.internal.resolve.TypeResolver;
+import io.github.sheikah45.fx2j.processor.internal.resolve.ValueResolver;
+import io.github.sheikah45.fx2j.processor.internal.utils.CodeBlockUtils;
 
-import java.lang.invoke.MethodType;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -43,27 +52,17 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.SequencedMap;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class ObjectNodeProcessor {
-    private static final Map<Class<?>, Object> DEFAULTS_MAP = Map.of(byte.class, (byte) 0, short.class, (short) 0,
-                                                                     int.class, 0, long.class, 0L, float.class, 0.0f,
-                                                                     double.class, 0.0d, char.class, '\u0000',
-                                                                     boolean.class, false);
-
-    private static final Pattern CHANGE_PROPERTY_PATTERN = Pattern.compile("on(?<property>.+)Change");
     private static final String EVENT_HANDLER_CLASS = "javafx.event.EventHandler";
-    private static final String ON_CHANGE = "onChange";
     private static final String OBSERVABLE_VALUE_CLASS = "javafx.beans.value.ObservableValue";
     private static final String OBSERVABLE_LIST_CLASS = "javafx.collections.ObservableList";
     private static final String LIST_CHANGE_CLASS = "javafx.collections.ListChangeListener$Change";
@@ -75,66 +74,75 @@ public class ObjectNodeProcessor {
                                                                               OBSERVABLE_SET_CLASS, SET_CHANGE_CLASS,
                                                                               OBSERVABLE_MAP_CLASS, MAP_CHANGE_CLASS);
 
-    private final ReflectionResolver resolver;
+    private final ResolverContainer resolverContainer;
+    private final TypeResolver typeResolver;
+    private final ExpressionResolver expressionResolver;
+    private final ValueResolver valueResolver;
+    private final MethodResolver methodResolver;
+    private final NameResolver nameResolver;
     private final Path filePath;
     private final Class<?> controllerClass;
     private final ClassInstanceElement rootNode;
     private final Path resourceRootPath;
     private final String rootPackage;
     private final ObjectNodeCode nodeCode;
-    private final String id;
+    private final String providedId;
 
     private final CodeBlock.Builder objectInitializationBuilder = CodeBlock.builder();
-    private final List<Value.Single> defaultPropertyChildren = new ArrayList<>();
-    private final Map<String, FxmlProperty.Instance> instanceProperties = new HashMap<>();
+    private final List<ClassInstanceElement> defaultPropertyElements = new ArrayList<>();
+    private final SequencedMap<String, FxmlProperty.Instance> instanceProperties = new LinkedHashMap<>();
     private final List<FxmlProperty.Static> staticProperties = new ArrayList<>();
     private final List<FxmlProperty.EventHandler> handlerProperties = new ArrayList<>();
     private final List<ClassInstanceElement> definedChildren = new ArrayList<>();
     private final List<ScriptElement> scripts = new ArrayList<>();
 
-    private Type objectClass;
-    private Class<?>[] typeArguments;
+    private Type objectType;
+    private Type[] typeArguments;
     private String objectIdentifier;
 
-    public ObjectNodeProcessor(ClassInstanceElement rootNode, Class<?> controllerClass, ReflectionResolver resolver,
-                               Path filePath, Path resourceRootPath, String rootPackage) {
+    public ObjectNodeProcessor(ClassInstanceElement rootNode, Class<?> controllerClass,
+                               ResolverContainer resolverContainer, Path filePath, Path resourceRootPath,
+                               String rootPackage) {
         this.resourceRootPath = resourceRootPath;
         this.rootPackage = rootPackage;
-        this.resolver = resolver;
         this.filePath = filePath;
         this.controllerClass = controllerClass;
         this.rootNode = rootNode;
-        List<FxmlAttribute> attributes = rootNode.content().attributes();
-        this.id = attributes.stream()
-                            .filter(IdAttribute.class::isInstance)
-                            .map(IdAttribute.class::cast)
-                            .map(IdAttribute::value)
-                            .findFirst()
-                            .orElse(null);
+        this.resolverContainer = resolverContainer;
+        this.typeResolver = resolverContainer.getTypeResolver();
+        this.methodResolver = resolverContainer.getMethodResolver();
+        this.nameResolver = resolverContainer.getNameResolver();
+        this.expressionResolver = resolverContainer.getExpressionResolver();
+        this.valueResolver = resolverContainer.getValueResolver();
+
+        List<? extends FxmlAttribute> attributes = rootNode.content().attributes();
+        this.providedId = attributes.stream()
+                                    .filter(IdAttribute.class::isInstance)
+                                    .map(IdAttribute.class::cast)
+                                    .map(IdAttribute::value)
+                                    .findFirst()
+                                    .orElse(null);
 
         attributes.forEach(attribute -> {
             switch (attribute) {
-                case InstancePropertyAttribute instance -> instanceProperties.put(instance.property(), instance);
+                case InstancePropertyAttribute instanceProperty ->
+                        instanceProperties.put(instanceProperty.propertyName(), instanceProperty);
                 case StaticPropertyAttribute staticProperty -> staticProperties.add(staticProperty);
                 case EventHandlerAttribute handler -> handlerProperties.add(handler);
-                case FxmlAttribute.SpecialAttribute ignored -> {}
+                case SpecialAttribute ignored -> {}
             }
         });
 
-        rootNode.content().children().forEach(child -> {
-            switch (child) {
-                case InstancePropertyElement instance -> instanceProperties.put(instance.property(), instance);
-                case StaticPropertyElement stat -> staticProperties.add(stat);
-                case DefineElement(List<ClassInstanceElement> children) -> definedChildren.addAll(children);
-                case ClassInstanceElement classInstanceElement ->
-                        defaultPropertyChildren.add(new Concrete.Element(classInstanceElement));
+        rootNode.content().elements().forEach(element -> {
+            switch (element) {
+                case InstancePropertyElement instanceProperty ->
+                        instanceProperties.put(instanceProperty.propertyName(), instanceProperty);
+                case StaticPropertyElement staticProperty -> staticProperties.add(staticProperty);
+                case DefineElement(List<ClassInstanceElement> elements) -> definedChildren.addAll(elements);
+                case ClassInstanceElement classInstanceElement -> defaultPropertyElements.add(classInstanceElement);
                 case ScriptElement script -> scripts.add(script);
             }
         });
-
-        if (!(rootNode.content().body() instanceof Concrete.Empty)) {
-            defaultPropertyChildren.add(rootNode.content().body());
-        }
 
         nodeCode = processNode();
     }
@@ -145,13 +153,14 @@ public class ObjectNodeProcessor {
         }
 
         processObjectInitialization();
-        processDefinedChildren();
-        processDefaultProperty();
-        processInstanceProperties();
-        processStaticProperties();
-        processHandlerProperties();
+        definedChildren.forEach(this::buildChildNode);
+        processDefaultPropertyElements();
+        processDefaultPropertyValue();
+        instanceProperties.values().forEach(this::processInstanceProperty);
+        handlerProperties.forEach(this::processHandlerProperty);
+        staticProperties.forEach(this::processStaticProperty);
 
-        return new ObjectNodeCode(objectIdentifier, objectClass, objectInitializationBuilder.add("\n").build());
+        return new ObjectNodeCode(objectIdentifier, objectType, objectInitializationBuilder.add("\n").build());
     }
 
     private ObjectNodeCode processNode() {
@@ -170,10 +179,10 @@ public class ObjectNodeProcessor {
 
     private void processIncludeInitialization(Path source) {
         FxmlProcessor includedProcessor = new FxmlProcessor(filePath.resolveSibling(source), resourceRootPath,
-                                                            rootPackage, resolver.getClassLoader());
-        objectClass = resolver.checkResolved(includedProcessor.getRootClass());
+                                                            rootPackage, typeResolver.getClassLoader());
+        objectType = typeResolver.resolveClassFromType(includedProcessor.getRootClass());
 
-        if (objectClass == null) {
+        if (objectType == null) {
             throw new IllegalArgumentException(
                     "Unable to determine object class for %s".formatted(filePath.resolveSibling(source)));
         }
@@ -185,11 +194,11 @@ public class ObjectNodeProcessor {
         objectInitializationBuilder.addStatement("$1T $2L = new $1T()", includedClassName, builderIdentifier)
                                    .addStatement("$L.build(null, null, $L, $L)", builderIdentifier,
                                                  FxmlProcessor.RESOURCES_NAME, FxmlProcessor.CONTROLLER_FACTORY_NAME)
-                                   .addStatement("$T $L = $L.getRoot()", objectClass, objectIdentifier,
+                                   .addStatement("$T $L = $L.getRoot()", objectType, objectIdentifier,
                                                  builderIdentifier);
 
-        Class<?> includedControllerClass = resolver.checkResolved(includedProcessor.getControllerClass());
-        if (includedControllerClass != Object.class && id != null) {
+        Class<?> includedControllerClass = typeResolver.resolveClassFromType(includedProcessor.getControllerClass());
+        if (includedControllerClass != Object.class && providedId != null) {
             String controllerIdentifier = objectIdentifier + "Controller";
             objectInitializationBuilder.addStatement("$T $L = $L.getController()", includedControllerClass,
                                                      controllerIdentifier, builderIdentifier);
@@ -197,12 +206,8 @@ public class ObjectNodeProcessor {
         }
     }
 
-    private void processHandlerProperties() {
-        handlerProperties.forEach(this::processHandlerProperty);
-    }
-
     private void processConstructorInitialization(String className) {
-        objectClass = resolver.resolveRequired(className);
+        objectType = typeResolver.resolve(className);
         resolveIdentifier();
 
         for (List<NamedArgValue> constructorArgs : getMatchingConstructorArgs()) {
@@ -215,210 +220,410 @@ public class ObjectNodeProcessor {
         throw new IllegalArgumentException("Unknown constructor");
     }
 
-    private void processInstanceProperties() {
-        Collection<FxmlProperty.Instance> instanceProperties = this.instanceProperties.values();
-        if (resolver.isAssignableFrom(Map.class, objectClass)) {
-            Class<?> keyTypeBound = typeArguments == null ? Object.class : typeArguments[0];
-            Class<?> valueTypeBound = typeArguments == null ? Object.class : typeArguments[1];
-
-            instanceProperties.forEach(
-                    attribute -> addPropertyToMapWithTypeBounds(CodeBlock.of("$L", objectIdentifier), attribute,
-                                                                keyTypeBound, valueTypeBound));
+    private void processDefaultPropertyElements() {
+        if (defaultPropertyElements.isEmpty()) {
             return;
         }
 
-        instanceProperties.forEach(property -> processInstanceProperty(property.property(), property.value()));
-    }
-
-    private void addPropertyToMapWithTypeBounds(CodeBlock mapBlock, FxmlProperty.Instance property,
-                                                Class<?> keyTypeBound, Class<?> valueTypeBound) {
-        if (!(property.value() instanceof Concrete concrete)) {
-            throw new IllegalArgumentException("Cannot add non-concrete value to map");
+        String defaultProperty = methodResolver.resolveDefaultProperty(objectType);
+        if (defaultProperty != null) {
+            defaultPropertyElements.forEach(element -> processInstancePropertyElement(defaultProperty, element));
+            return;
         }
-        CodeBlock keyValue = coerceValue(keyTypeBound, property.property());
-        CodeBlock valueValue = coerceValue(valueTypeBound, concrete);
-        objectInitializationBuilder.addStatement("$L.put($L, $L)", mapBlock, keyValue, valueValue);
+
+        if (typeResolver.isAssignableFrom(Collection.class, objectType)) {
+            Type contentTypeBound = typeArguments == null ? Object.class : typeArguments[0];
+            CodeBlock objectBlock = CodeBlock.of("$L", objectIdentifier);
+            defaultPropertyElements.forEach(
+                    element -> addToCollectionWithTypeBound(objectBlock, element, contentTypeBound));
+            return;
+        }
+
+        throw new IllegalArgumentException("Unable to handle default elements for elements %s".formatted(objectType));
     }
 
-    private void processStaticProperties() {
-        staticProperties.forEach(
-                property -> processStaticProperty(property.className(), property.property(), property.value()));
+    private void processDefaultPropertyValue() {
+        Value value = rootNode.content().value();
+        if (value instanceof Value.Empty) {
+            return;
+        }
+
+        String defaultProperty = methodResolver.resolveDefaultProperty(objectType);
+        if (defaultProperty != null) {
+            processInstancePropertyValue(defaultProperty, value);
+            return;
+        }
+
+        if (typeResolver.isAssignableFrom(Collection.class, objectType)) {
+            Type contentTypeBound = typeArguments == null ? Object.class : typeArguments[0];
+            addToCollectionWithTypeBound(CodeBlock.of("$L", objectIdentifier), value, contentTypeBound);
+            return;
+        }
+
+        throw new IllegalArgumentException("Unable to handle default value for elements %s".formatted(objectType));
     }
 
-    private void processDefinedChildren() {
-        definedChildren.forEach(this::buildChildNode);
+    private void processInstanceProperty(FxmlProperty.Instance property) {
+        switch (property) {
+            case InstancePropertyElement(
+                    String propertyName, ElementContent<AssignableAttribute, AssignableElement> content
+            ) -> processInstantPropertyContent(propertyName, content);
+            case InstancePropertyAttribute(String propertyName, Value value) ->
+                    processInstancePropertyValue(propertyName, value);
+        }
     }
 
-    private void processInstanceProperty(String property, Value value) {
-        switch (value) {
-            case Concrete.Element(ClassInstanceElement classInstanceElement) ->
-                    processPropertyClassInstanceElement(property, classInstanceElement);
-            case Concrete.Attribute(FxmlProperty.Instance attribute) ->
-                    processPropertiesOnProperty(property, List.of(attribute));
-            case Value.Single single -> processInstancePropertySingle(property, single);
-            case Value.Multi(List<? extends Value.Single> values) -> {
-                List<ClassInstanceElement> elements = new ArrayList<>();
-                List<FxmlProperty.Instance> properties = new ArrayList<>();
+    private void processInstantPropertyContent(String propertyName,
+                                               ElementContent<AssignableAttribute, AssignableElement> content) {
+        content.attributes().forEach(attribute -> processAttributeOnProperty(propertyName, attribute));
+        content.elements().forEach(element -> processElementOnProperty(propertyName, element));
+        processInstancePropertyValue(propertyName, content.value());
+    }
 
-                values.forEach(val -> {
-                    switch (val) {
-                        case Concrete.Element(ClassInstanceElement element) -> elements.add(element);
-                        case Concrete.Element(FxmlProperty.Instance element) -> properties.add(element);
-                        case Concrete.Attribute(FxmlProperty.Instance attribute) -> properties.add(attribute);
-                        case Value.Single single -> processInstancePropertySingle(property, single);
-                    }
-                });
-
-                if (!elements.isEmpty()) {
-                    processPropertyElements(property, elements);
+    private void processElementOnProperty(String propertyName, AssignableElement element) {
+        switch (element) {
+            case ClassInstanceElement classInstanceElement ->
+                    processInstancePropertyElement(propertyName, classInstanceElement);
+            case InstancePropertyElement(
+                    String key, ElementContent<AssignableAttribute, AssignableElement> innerContent
+            ) -> {
+                if (!innerContent.attributes().isEmpty() || !innerContent.elements().isEmpty()) {
+                    throw new UnsupportedOperationException(
+                            "Cannot resolve property value from content with attributes");
                 }
-                if (!properties.isEmpty()) {
-                    processPropertiesOnProperty(property, properties);
-                }
+
+                addToPropertyMap(propertyName, key, innerContent.value());
             }
-            default -> throw new UnsupportedOperationException(
-                    "Cannot process value %s for property %s".formatted(value, property));
         }
     }
 
-    private void processStaticProperty(String className, String property, Value value) {
+    private void processAttributeOnProperty(String propertyName, AssignableAttribute attribute) {
+        switch (attribute) {
+            case EventHandlerAttribute(String eventName, Handler handler) when "onChange".equals(eventName) ->
+                    processHandlerOnProperty(propertyName, handler);
+            case EventHandlerAttribute ignored ->
+                    throw new UnsupportedOperationException("Unknown event handler on property");
+            case InstancePropertyAttribute(String key, Value value) -> addToPropertyMap(propertyName, key, value);
+        }
+    }
+
+    private void addToPropertyMap(String propertyName, String key, Value value) {
+        Method propertyGetter = methodResolver.resolveGetter(objectType, propertyName)
+                                              .orElseThrow(() -> new IllegalArgumentException(
+                                                      "Unable to find getter for property %s on class %s".formatted(
+                                                              propertyName, objectType)));
+
+
+        Type propertyType = propertyGetter.getGenericReturnType();
+        Type[] typeArguments = typeResolver.resolveUpperBoundTypeArguments(propertyType);
+        if (!typeResolver.isAssignableFrom(Map.class, propertyType)) {
+            throw new IllegalArgumentException("Property %s does not extend map".formatted(propertyName));
+        }
+
+        if (typeArguments == null || typeArguments.length != 2) {
+            throw new IllegalArgumentException(
+                    "Property %s does not represent a map with two type arguments".formatted(propertyName));
+        }
+        addToMapWithTypeBounds(CodeBlock.of("$L.$L()", objectIdentifier, propertyGetter.getName()), key, value,
+                               typeArguments[0], typeArguments[1]);
+    }
+
+    private void processInstancePropertyElement(String propertyName, ClassInstanceElement element) {
+
+        Method propertySetter = methodResolver.resolveSetter(objectType, propertyName).orElse(null);
+        if (propertySetter != null) {
+            ObjectNodeCode nodeCode = buildChildNode(element);
+            Type parameterType = propertySetter.getGenericParameterTypes()[0];
+
+            if (!typeResolver.isAssignableFrom(parameterType, nodeCode.nodeClass())) {
+                throw new IllegalArgumentException(
+                        "Property setter %s does not match node type %s".formatted(propertySetter,
+                                                                                   nodeCode.nodeClass()));
+            }
+
+            objectInitializationBuilder.addStatement("$L.$L($L)", objectIdentifier, propertySetter.getName(),
+                                                     nodeCode.nodeIdentifier());
+            return;
+        }
+
+        Method propertyGetter = methodResolver.resolveGetter(objectType, propertyName).orElse(null);
+        if (propertyGetter != null) {
+            Type propertyGenericType = propertyGetter.getGenericReturnType();
+            if (typeResolver.isAssignableFrom(Collection.class, propertyGenericType) &&
+                propertyGenericType instanceof ParameterizedType parameterizedType) {
+
+                Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
+                if (actualTypeArguments.length != 1) {
+                    throw new IllegalArgumentException(
+                            "Unable to resolve contained type for type %s".formatted(parameterizedType));
+                }
+
+                addToCollectionWithTypeBound(CodeBlock.of("$L.$L()", objectIdentifier, propertyGetter.getName()),
+                                             element, actualTypeArguments[0]);
+                return;
+            }
+
+            throw new IllegalArgumentException(
+                    "Unable to process read only property %s type %s".formatted(propertyName, propertyGenericType));
+        }
+
+        CodeBlock objectBlock = CodeBlock.of("$L", objectIdentifier);
+        Type[] actualTypeArguments = typeArguments == null ? new Type[]{Object.class, Object.class} : typeArguments;
+        if (typeResolver.isAssignableFrom(Map.class, objectType)) {
+
+            if (actualTypeArguments.length != 2) {
+                throw new IllegalArgumentException(
+                        "Unable to resolve key and value type for type %s".formatted(objectType));
+            }
+
+            addToMapWithTypeBounds(objectBlock, propertyName, element, actualTypeArguments[0], actualTypeArguments[1]);
+            return;
+        }
+
+        throw new IllegalStateException("Unknown property %s".formatted(propertyName));
+    }
+
+    private void processInstancePropertyValue(String propertyName, Value value) {
         switch (value) {
-            case Concrete.Element(ClassInstanceElement element) ->
-                    processStaticPropertyElement(className, property, element);
-            case Value.Single single -> processStaticPropertySingle(className, property, single);
-            default -> throw new UnsupportedOperationException(
-                    "Cannot process value %s for static property %s".formatted(value, property));
+            case Value.Empty ignored -> {}
+            case Expression expression -> {
+                Method propertyMethod = methodResolver.resolveProperty(objectType, propertyName)
+                                                      .orElseThrow(() -> new IllegalArgumentException(
+                                                              "No property found for expression binding %s".formatted(
+                                                                      propertyName)));
+                Type valueType = propertyMethod.getGenericReturnType();
+                ExpressionResult result = expressionResolver.resolveExpression(expression);
+                Method bindMethod = methodResolver.findMethod(valueType, "bind", result.type())
+                                                  .orElseThrow(() -> new IllegalArgumentException(
+                                                          "Property %s does not have a bind method".formatted(
+                                                                  propertyName)));
+                result.initializers()
+                      .stream()
+                      .map(CodeBlockUtils::convertToCodeBlock)
+                      .forEach(objectInitializationBuilder::addStatement);
+                objectInitializationBuilder.addStatement("$L.$L().$L($L)", objectIdentifier, propertyMethod.getName(),
+                                                         bindMethod.getName(), result.value());
+            }
+            case Value val -> {
+                Method propertySetter = methodResolver.resolveSetter(objectType, propertyName).orElse(null);
+                if (propertySetter != null) {
+                    Type valueType = propertySetter.getGenericParameterTypes()[0];
+                    CodeBlock valueCode = CodeBlockUtils.convertToCodeBlock(
+                            valueResolver.resolveCodeValue(valueType, val));
+                    objectInitializationBuilder.addStatement("$L.$L($L)", objectIdentifier, propertySetter.getName(),
+                                                             valueCode);
+                    return;
+                }
+
+                Method propertyGetter = methodResolver.resolveGetter(objectType, propertyName).orElse(null);
+                if (propertyGetter != null) {
+                    Type propertyGenericType = propertyGetter.getGenericReturnType();
+                    CodeBlock propertyBlock = CodeBlock.of("$L.$L()", objectIdentifier, propertyGetter.getName());
+                    if (typeResolver.isAssignableFrom(Collection.class, propertyGenericType) &&
+                        propertyGenericType instanceof ParameterizedType parameterizedType) {
+
+                        Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
+                        if (actualTypeArguments.length != 1) {
+                            throw new IllegalArgumentException(
+                                    "Unable to resolve contained type for type %s".formatted(parameterizedType));
+                        }
+
+                        addToCollectionWithTypeBound(propertyBlock, val, actualTypeArguments[0]);
+                        return;
+                    }
+
+                    if (typeResolver.isAssignableFrom(Map.class, propertyGenericType) &&
+                        propertyGenericType instanceof ParameterizedType parameterizedType) {
+
+                        Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
+                        if (actualTypeArguments.length != 2) {
+                            throw new IllegalArgumentException(
+                                    "Unable to resolve key and value type for type %s".formatted(parameterizedType));
+                        }
+
+                        addToMapWithTypeBounds(propertyBlock, propertyName, val, actualTypeArguments[0],
+                                               actualTypeArguments[1]);
+                        return;
+                    }
+
+                    throw new IllegalArgumentException(
+                            "Unable to process read only property %s type %s".formatted(propertyName,
+                                                                                        propertyGenericType));
+                }
+
+                if (typeResolver.isAssignableFrom(Map.class, objectType)) {
+                    Type[] actualTypeArguments = typeArguments == null ?
+                                                 new Type[]{Object.class, Object.class} :
+                                                 typeArguments;
+                    if (typeArguments != null && typeArguments.length != 2) {
+                        throw new IllegalArgumentException(
+                                "Unable to resolve key and value type for type %s".formatted(objectType));
+                    }
+
+                    addToMapWithTypeBounds(CodeBlock.of("$L", objectIdentifier), propertyName, value,
+                                           actualTypeArguments[0], actualTypeArguments[1]);
+                    return;
+                }
+
+                throw new UnsupportedOperationException(
+                        "Unknown property %s for class %s".formatted(propertyName, objectType));
+            }
         }
     }
 
-    private void processStaticPropertyElement(String className, String property, ClassInstanceElement propertyElement) {
-        Class<?> staticPropertyClass = resolver.resolveRequired(className);
-        Method propertySetter = resolver.resolveStaticSetter(staticPropertyClass, property).orElse(null);
+    private void processStaticProperty(FxmlProperty.Static property) {
+        switch (property) {
+            case StaticPropertyElement(
+                    String className, String propertyName,
+                    ElementContent<AssignableAttribute, AssignableElement> content
+            ) -> processStaticPropertyContent(className, propertyName, content);
+            case StaticPropertyAttribute(String className, String propertyName, Value value) ->
+                    processStaticPropertyValue(className, propertyName, value);
+        }
+    }
+
+    private void processStaticPropertyContent(String className, String propertyName,
+                                              ElementContent<AssignableAttribute, AssignableElement> content) {
+        if (!content.attributes().isEmpty()) {
+            throw new UnsupportedOperationException("Cannot handle attributes on static property element");
+        }
+
+        if ((!content.elements().isEmpty() && !(content.value() instanceof Value.Empty)) ||
+            content.elements().size() > 1) {
+            throw new UnsupportedOperationException("Cannot handle multiple values for static property element");
+        }
+
+        if (content.elements().size() == 1) {
+            if (!(content.elements().getFirst() instanceof ClassInstanceElement classInstanceElement)) {
+                throw new UnsupportedOperationException(
+                        "Cannot handle static property element value that is not a class instance");
+            }
+            processStaticPropertyElement(className, propertyName, classInstanceElement);
+        }
+
+        processStaticPropertyValue(className, propertyName, content.value());
+    }
+
+    private void processStaticPropertyElement(String className, String property, ClassInstanceElement element) {
+        Class<?> staticPropertyClass = typeResolver.resolve(className);
+        Method propertySetter = methodResolver.resolveStaticSetter(staticPropertyClass, property).orElse(null);
 
         if (propertySetter != null) {
-            processStaticPropertySetter(propertyElement, propertySetter, staticPropertyClass);
+            Type parameterType = propertySetter.getGenericParameterTypes()[0];
+
+            if (!typeResolver.isAssignableFrom(parameterType, objectType)) {
+                throw new IllegalArgumentException(
+                        "First parameter of static property setter does not match node type");
+            }
+
+            ObjectNodeCode nodeCode = buildChildNode(element);
+            if (!typeResolver.isAssignableFrom(propertySetter.getParameterTypes()[1], nodeCode.nodeClass())) {
+                throw new IllegalArgumentException(
+                        "Second parameter of static property setter %s does not match node type %s".formatted(
+                                propertySetter, nodeCode.nodeClass()));
+            }
+
+            objectInitializationBuilder.addStatement("$T.$L($L, $L)", staticPropertyClass, propertySetter.getName(),
+                                                     objectIdentifier, nodeCode.nodeIdentifier());
         } else {
             throw new IllegalStateException(
                     "Cannot find setter for static property %s.%s".formatted(className, property));
         }
     }
 
-    private void processStaticPropertySetter(ClassInstanceElement staticProperty, Method propertySetter,
-                                             Class<?> staticPropertyClass) {
-        Class<?> parameterType = propertySetter.getParameterTypes()[0];
-
-        if (!resolver.isAssignableFrom(parameterType, objectClass)) {
-            throw new IllegalArgumentException("First parameter of static property setter does not match node type");
+    private void addToCollectionWithTypeBound(CodeBlock collectionCodeBlock, Value value, Type contentTypeBound) {
+        switch (value) {
+            case Value.Empty() -> {}
+            case Value.Literal(String val) when val.contains(",") -> Arrays.stream(val.split(",\\s*"))
+                                                                           .map(item -> valueResolver.resolveCodeValue(
+                                                                                   contentTypeBound, item))
+                                                                           .forEach(
+                                                                                   valueCode -> objectInitializationBuilder.addStatement(
+                                                                                           "$L.add($L)",
+                                                                                           collectionCodeBlock,
+                                                                                           valueCode));
+            case Value val -> objectInitializationBuilder.addStatement("$L.add($L)", collectionCodeBlock,
+                                                                       valueResolver.resolveCodeValue(contentTypeBound,
+                                                                                                      val));
         }
-
-        ObjectNodeCode nodeCode = buildChildNode(staticProperty);
-        if (!resolver.isAssignableFrom(propertySetter.getParameterTypes()[1], nodeCode.nodeClass())) {
-            throw new IllegalArgumentException(
-                    "Second parameter of static property setter %s does not match node type %s".formatted(
-                            propertySetter, nodeCode.nodeClass()));
-        }
-
-        objectInitializationBuilder.addStatement("$T.$L($L, $L)", staticPropertyClass, propertySetter.getName(),
-                                                 objectIdentifier, nodeCode.nodeIdentifier());
     }
 
-    private ObjectNodeCode buildChildNode(ClassInstanceElement childNode) {
-        ObjectNodeCode nodeCode = new ObjectNodeProcessor(childNode, controllerClass, resolver, filePath,
-                                                          resourceRootPath, rootPackage).getNodeCode();
-        objectInitializationBuilder.add(nodeCode.objectInitializationCode());
-        return nodeCode;
+    private void addToMapWithTypeBounds(CodeBlock mapBlock, String key, Value value, Type keyTypeBound,
+                                        Type valueTypeBound) {
+        CodeBlock keyValue = CodeBlockUtils.convertToCodeBlock(valueResolver.resolveCodeValue(keyTypeBound, key));
+        CodeBlock valueValue = CodeBlockUtils.convertToCodeBlock(valueResolver.resolveCodeValue(valueTypeBound, value));
+        objectInitializationBuilder.addStatement("$L.put($L, $L)", mapBlock, keyValue, valueValue);
     }
 
     private boolean propertyIsMutable(String property) {
-        return resolver.isAssignableFrom(Map.class, objectClass) ||
-               resolver.resolveSetter(objectClass, property).isPresent() ||
-               resolver.resolveGetter(objectClass, property)
-                       .map(Method::getReturnType)
-                       .map(returnType -> resolver.isAssignableFrom(Collection.class, returnType) ||
-                                          resolver.isAssignableFrom(Map.class, returnType))
-                       .orElse(false);
+        return typeResolver.isAssignableFrom(Map.class, objectType) ||
+               methodResolver.resolveSetter(objectType, property).isPresent() ||
+               methodResolver.resolveGetter(objectType, property)
+                             .map(Method::getReturnType)
+                             .map(returnType -> typeResolver.isAssignableFrom(Collection.class, returnType) ||
+                                                typeResolver.isAssignableFrom(Map.class, returnType))
+                             .orElse(false);
     }
 
-    private CodeBlock coerceUsingValueOfMethodResults(String valueString, Method valueOfMethod, Type valueType)
-            throws IllegalAccessException, InvocationTargetException {
-        if (resolver.isPrimitive(valueType)) {
-            Object value = valueOfMethod.invoke(null, valueString);
-            if (Objects.equals(value, Double.POSITIVE_INFINITY) || Objects.equals(value, Float.POSITIVE_INFINITY)) {
-                return CodeBlock.of("$T.POSITIVE_INFINITY", valueType);
-            }
-
-            if (Objects.equals(value, Double.NEGATIVE_INFINITY) || Objects.equals(value, Float.NEGATIVE_INFINITY)) {
-                return CodeBlock.of("$T.NEGATIVE_INFINITY", valueType);
-            }
-
-            if (Objects.equals(value, Double.NaN) || Objects.equals(value, Float.NaN)) {
-                return CodeBlock.of("$T.NaN", valueType);
-            }
-
-            return CodeBlock.of("$L", value);
+    private void processStaticPropertyValue(String className, String property, Value value) {
+        if (value instanceof Value.Empty) {
+            return;
         }
 
-        if (resolver.isAssignableFrom(Enum.class, valueType)) {
-            Object value = valueOfMethod.invoke(null, valueString);
-            return CodeBlock.of("$T.$L", valueType, value);
+        Class<?> staticPropertyClass = typeResolver.resolve(className);
+        Method propertySetter = methodResolver.resolveStaticSetter(staticPropertyClass, property).orElse(null);
+        if (propertySetter == null) {
+            throw new IllegalArgumentException(
+                    "Unable to find static setter for %s on %s".formatted(property, staticPropertyClass));
         }
 
-        return CodeBlock.of("$T.$L($S)", valueType, valueOfMethod.getName(), valueString);
+        Class<?>[] parameterTypes = propertySetter.getParameterTypes();
+        if (!typeResolver.isAssignableFrom(parameterTypes[0], objectType)) {
+            throw new IllegalArgumentException("First parameter of static property setter does not match node type");
+        }
+
+        CodeBlock valueCode = CodeBlockUtils.convertToCodeBlock(
+                valueResolver.resolveCodeValue(parameterTypes[1], value));
+        objectInitializationBuilder.addStatement("$T.$L($L, $L)", staticPropertyClass, propertySetter.getName(),
+                                                 objectIdentifier, valueCode);
+    }
+
+    private List<List<NamedArgValue>> getPossibleConstructorArgs() {
+        return methodResolver.getConstructors(objectType)
+                             .stream()
+                             .filter(methodResolver::hasAllNamedArgs)
+                             .map(methodResolver::getNamedArgs)
+                             .toList();
+    }
+
+    private void processRootInitialization(String type) {
+        objectIdentifier = FxmlProcessor.BUILDER_PROVIDED_ROOT_NAME;
+        objectType = typeResolver.resolve(type);
     }
 
     private CodeBlock resolveParameterValue(NamedArgValue namedArgValue) {
         Class<?> paramType = namedArgValue.parameterType();
         String paramName = namedArgValue.name();
         FxmlProperty.Instance property = instanceProperties.get(paramName);
-        Value value = property == null ? null : property.value();
-        return switch (value) {
-            case Concrete concrete -> coerceValue(paramType, concrete);
-            case null -> {
-                String defaultValue = namedArgValue.defaultValue();
-                if (defaultValue.isBlank()) {
-                    yield CodeBlock.of("$L", DEFAULTS_MAP.get(namedArgValue.parameterType()));
+        return switch (property) {
+            case InstancePropertyElement(String ignored, ElementContent<?, ?> content) -> {
+                if (!content.attributes().isEmpty() || !content.elements().isEmpty()) {
+                    throw new UnsupportedOperationException(
+                            "Cannot resolve property value from content with attributes");
                 }
-                yield coerceValue(paramType, defaultValue);
+
+                CodeValue value = valueResolver.resolveCodeValue(paramType, content.value());
+                if (!(value instanceof CodeValue.Null)) {
+                    yield CodeBlockUtils.convertToCodeBlock(value);
+                }
+
+                yield CodeBlockUtils.convertToCodeBlock(valueResolver.coerceDefaultValue(namedArgValue));
+
             }
-            default ->
-                    throw new UnsupportedOperationException("Cannot resolve parameter value from %s".formatted(value));
+            case InstancePropertyAttribute(String ignored, Value value) ->
+                    CodeBlockUtils.convertToCodeBlock(valueResolver.resolveCodeValue(paramType, value));
+            case null -> CodeBlockUtils.convertToCodeBlock(valueResolver.coerceDefaultValue(namedArgValue));
         };
-    }
-
-    private List<List<NamedArgValue>> getPossibleConstructorArgs() {
-        return resolver.getConstructors(objectClass).stream()
-                     .filter(resolver::hasAllNamedArgs)
-                     .map(resolver::getNamedArgs)
-                     .toList();
-    }
-
-    private void processRootInitialization(String type) {
-        objectIdentifier = FxmlProcessor.BUILDER_PROVIDED_ROOT_NAME;
-        objectClass = resolver.resolveRequired(type);
-    }
-
-    private void processValueInitialization(String className, String value) {
-        objectClass = resolver.resolveRequired(className);
-        resolveIdentifier();
-        if (objectClass == String.class) {
-            objectInitializationBuilder.addStatement("$T $L = $S", objectClass, objectIdentifier, value);
-            return;
-        }
-
-
-        Method method = resolver.findMethodRequiredPublicIfExists(objectClass, "valueOf", String.class)
-                                .orElseThrow(() -> new IllegalArgumentException(
-                                        "Class %s does not have a valueOf method".formatted(objectClass)));
-
-
-        try {
-            CodeBlock valueCode = coerceUsingValueOfMethodResults(value, method, objectClass);
-            objectInitializationBuilder.addStatement("$T $L = $L", objectClass, objectIdentifier, valueCode);
-        } catch (InvocationTargetException | IllegalAccessException | RuntimeException e) {
-            throw new IllegalArgumentException(
-                    "Value %s not parseable by %s.%s".formatted(value, objectClass, method.getName()));
-        }
-
     }
 
     private Set<List<NamedArgValue>> getMatchingConstructorArgs() {
@@ -471,61 +676,81 @@ public class ObjectNodeProcessor {
     private void processObjectInitialization() {
         objectInitializationBuilder.add("\n");
         switch (rootNode) {
-            case RootElement(String type, ClassInstanceElement.Content ignored) -> processRootInitialization(type);
-            case ReferenceElement(String source, ClassInstanceElement.Content content) ->
+            case RootElement(String type, ElementContent<?, ?> ignored) -> processRootInitialization(type);
+            case ReferenceElement(String source, ElementContent<?, ?> content) ->
                     processReferenceInitialization(source, content);
             case CopyElement(
-                    String source, ClassInstanceElement.Content ignored
+                    String source, ElementContent<?, ?> ignored
             ) -> processCopyInitialization(source);
             case IncludeElement(
-                    Path source, Path ignored1, Charset ignored2, ClassInstanceElement.Content ignored3
+                    Path source, Path ignored1, Charset ignored2, ElementContent<?, ?> ignored3
             ) -> processIncludeInitialization(source);
             case FactoryElement(
-                    String factoryClassName, String methodName, ClassInstanceElement.Content ignored
+                    String factoryClassName, String methodName, ElementContent<?, ?> ignored
             ) -> processFactoryBasedInitialization(factoryClassName, methodName);
-            case ConstantElement(String className, String member, ClassInstanceElement.Content ignored) ->
+            case ConstantElement(String className, String member, ElementContent<?, ?> ignored) ->
                     processConstantInitialization(className, member);
-            case ValueElement(String className, Concrete.Literal(String value), ClassInstanceElement.Content ignored) ->
+            case ValueElement(String className, String value, ElementContent<?, ?> ignored) ->
                     processValueInitialization(className, value);
-            case InstanceElement(String className, ClassInstanceElement.Content ignored) ->
+            case InstanceElement(String className, ElementContent<?, ?> ignored) ->
                     processConstructorInitialization(className);
             default -> throw new UnsupportedOperationException("Unable to initialize object");
         }
 
-        if (id != null) {
-            processControllerSetter(objectIdentifier, objectClass);
-            resolver.resolveSetter(objectClass, "id", String.class)
-                    .ifPresent(method -> objectInitializationBuilder.addStatement("$L.$L($S)", objectIdentifier,
-                                                                                  method.getName(), objectIdentifier));
+        if (providedId != null) {
+            processControllerSetter(objectIdentifier, objectType);
+            methodResolver.resolveSetter(objectType, "id", String.class)
+                          .ifPresent(method -> objectInitializationBuilder.addStatement("$L.$L($S)", objectIdentifier,
+                                                                                        method.getName(),
+                                                                                        objectIdentifier));
             typeArguments = extractTypeArguments();
         }
     }
 
-    private void processReferenceInitialization(String source, ClassInstanceElement.Content content) {
-        objectIdentifier = source;
-        objectClass = resolver.getStoredClassById(source);
-        if (!content.attributes().isEmpty() || !content.children().isEmpty()) {
-            throw new UnsupportedOperationException("References with children or attributes not supported");
+    private void processValueInitialization(String className, String value) {
+        objectType = typeResolver.unwrapType(typeResolver.resolve(className));
+        resolveIdentifier();
+        if (objectType == String.class) {
+            objectInitializationBuilder.addStatement("$T $L = $S", objectType, objectIdentifier, value);
+            return;
         }
+
+
+        Class<?> wrappedType = typeResolver.wrapType(objectType);
+        Method method = methodResolver.findMethodRequiredPublicIfExists(wrappedType, "valueOf", String.class)
+                                      .orElseThrow(() -> new IllegalArgumentException(
+                                              "Class %s does not have a valueOf method".formatted(objectType)));
+
+
+        try {
+            CodeBlock valueCode = CodeBlockUtils.convertToCodeBlock(valueResolver.resolveCodeValue(method, value));
+            objectInitializationBuilder.addStatement("$T $L = $L", objectType, objectIdentifier, valueCode);
+        } catch (InvocationTargetException | IllegalAccessException | RuntimeException e) {
+            throw new IllegalArgumentException(
+                    "Value %s not parseable by %s.%s".formatted(value, objectType, method.getName()));
+        }
+
     }
 
     private void processConstantInitialization(String className, String member) {
-        Class<?> constantContainerClass = resolver.resolveRequired(className);
-        objectClass = resolver.resolveFieldTypeRequiredPublic(constantContainerClass, member).orElseThrow();
+        Class<?> constantContainerClass = typeResolver.resolve(className);
+        objectType = methodResolver.resolveFieldRequiredPublicIfExists(constantContainerClass, member)
+                                   .map(Field::getType)
+                                   .orElseThrow(() -> new IllegalArgumentException(
+                                           "Field %s of %s is not found or public".formatted(member,
+                                                                                             constantContainerClass)));
         resolveIdentifier();
-        objectInitializationBuilder.addStatement("$T $L = $T.$L", objectClass, objectIdentifier, constantContainerClass,
+        objectInitializationBuilder.addStatement("$T $L = $T.$L", objectType, objectIdentifier, constantContainerClass,
                                                  member);
     }
 
-    private void processCopyInitialization(String source) {
-        objectClass = resolver.getStoredClassById(source);
-        ;
-        if (!resolver.hasCopyConstructor(objectClass)) {
-            throw new IllegalArgumentException("No copy constructor found for class %s".formatted(objectClass));
+    private void resolveIdentifier() {
+        if (providedId != null) {
+            objectIdentifier = providedId;
+            nameResolver.storeIdType(objectIdentifier, objectType);
+        } else {
+            objectIdentifier = nameResolver.resolveUniqueName(objectType);
         }
-
-        objectIdentifier = source + "Copy";
-        objectInitializationBuilder.addStatement("$1T $2L = new $1T($3L)", objectClass, objectIdentifier, source);
     }
 
     private void buildWithConstructorArgs(List<NamedArgValue> namedArgValues) {
@@ -535,21 +760,21 @@ public class ObjectNodeProcessor {
 
         namedArgValues.stream().map(NamedArgValue::name).forEach(instanceProperties::remove);
 
-        objectInitializationBuilder.addStatement("$T $L = new $T($L)", objectClass, objectIdentifier, objectClass,
+        objectInitializationBuilder.addStatement("$T $L = new $T($L)", objectType, objectIdentifier, objectType,
                                                  parameterValues);
     }
 
     private void processFactoryBasedInitialization(String factoryClassName, String factoryMethodName) {
-        Class<?> factoryClass = resolver.resolveRequired(factoryClassName);
-        Method factoryMethod = resolver.findMethod(factoryClass, factoryMethodName, 0)
-                                       .orElseThrow(() -> new IllegalArgumentException(
-                                               "Factory method not found %s.%s".formatted(factoryClassName,
-                                                                                          factoryMethodName)));
+        Class<?> factoryClass = typeResolver.resolve(factoryClassName);
+        Method factoryMethod = methodResolver.findMethod(factoryClass, factoryMethodName, 0)
+                                             .orElseThrow(() -> new IllegalArgumentException(
+                                                     "Factory method not found %s.%s".formatted(factoryClassName,
+                                                                                                factoryMethodName)));
 
-        objectClass = factoryMethod.getReturnType();
+        objectType = factoryMethod.getReturnType();
         resolveIdentifier();
 
-        objectInitializationBuilder.addStatement("$T $L = $T.$L()", objectClass, objectIdentifier, factoryClass,
+        objectInitializationBuilder.addStatement("$T $L = $T.$L()", objectType, objectIdentifier, factoryClass,
                                                  factoryMethod.getName());
     }
 
@@ -559,103 +784,64 @@ public class ObjectNodeProcessor {
         }
     }
 
-    private Class<?>[] extractTypeArguments() {
-        return resolver.resolveSetter(controllerClass, objectIdentifier, objectClass)
-                       .map(Method::getGenericParameterTypes)
-                       .map(types -> types[0])
-                       .or(() -> resolver.resolveField(controllerClass, objectIdentifier).map(Field::getGenericType))
-                       .map(resolver::resolveUpperBoundTypeArguments)
-                       .orElse(null);
+    private Type[] extractTypeArguments() {
+        return methodResolver.resolveSetter(controllerClass, objectIdentifier, objectType)
+                             .map(Method::getGenericParameterTypes)
+                             .map(types -> types[0])
+                             .or(() -> methodResolver.resolveField(controllerClass, objectIdentifier)
+                                                     .map(Field::getGenericType))
+                             .map(typeResolver::resolveUpperBoundTypeArguments)
+                             .orElse(null);
     }
 
-    private void resolveIdentifier() {
-        if (id != null) {
-            objectIdentifier = id;
-            resolver.storeIdType(objectIdentifier, objectClass);
-        } else {
-            objectIdentifier = resolver.getDeconflictedName(objectClass);
+    private void processReferenceInitialization(String source, ElementContent<?, ?> content) {
+        objectIdentifier = source;
+        objectType = nameResolver.resolveTypeById(source);
+        if (!content.attributes().isEmpty() || !content.elements().isEmpty()) {
+            throw new UnsupportedOperationException("References with elements or attributes not supported");
         }
     }
 
     private void processControllerSettersFromKnownClass(String identifier, Type valueClass) {
-        resolver.resolveSetterRequiredPublicIfExists(controllerClass, identifier, valueClass)
-                .map(Method::getName)
-                .map(methodName -> CodeBlock.of("$L.$L($L)", FxmlProcessor.CONTROLLER_NAME, methodName, identifier))
-                .or(() -> resolver.resolveFieldRequiredPublic(controllerClass, identifier)
-                                  .filter(field -> resolver.isAssignableFrom(field.getType(), valueClass))
-                                  .map(Field::getName)
-                                  .map(fieldName -> CodeBlock.of("$1L.$2L = $2L", FxmlProcessor.CONTROLLER_NAME,
-                                                                 fieldName)))
-                .ifPresent(objectInitializationBuilder::addStatement);
-    }
-
-    private void processInstancePropertySingle(String property, Value.Single value) {
-        if (value instanceof Concrete.Empty) {
-            return;
-        }
-
-        if (value instanceof Expression expression) {
-            Method propertyMethod = resolver.resolveProperty(objectClass, property)
-                                            .orElseThrow(() -> new IllegalArgumentException(
-                                                    "No property found for expression binding %s".formatted(property)));
-            processPropertyExpression(expression, propertyMethod);
-            return;
-        }
-
-        if (value instanceof Concrete concrete) {
-            Method propertySetter = resolver.resolveSetter(objectClass, property).orElse(null);
-            if (propertySetter != null) {
-                processPropertySetter(concrete, propertySetter);
-                return;
-            }
-        }
-
-        Method propertyGetter = resolver.resolveGetter(objectClass, property).orElse(null);
-
-        if (propertyGetter != null) {
-            Type propertyGenericType = propertyGetter.getGenericReturnType();
-            Class<?> propertyClass = propertyGetter.getReturnType();
-            String propertyName = objectIdentifier + StringUtils.capitalize(property);
-            if (resolver.isAssignableFrom(Collection.class, propertyClass) &&
-                propertyGenericType instanceof ParameterizedType parameterizedType &&
-                value instanceof Concrete.Literal(String val)) {
-                processCollectionInitialization(val, parameterizedType, propertyName, propertyGetter);
-                return;
-            }
-
-            throw new IllegalArgumentException(
-                    "Unable to process read only attribute of type %s".formatted(propertyClass));
-        }
-
-        throw new UnsupportedOperationException("Unknown property %s for class %s".formatted(property, objectClass));
+        methodResolver.resolveSetterRequiredPublicIfExists(controllerClass, identifier, valueClass)
+                      .map(Method::getName)
+                      .map(methodName -> CodeBlock.of("$L.$L($L)", FxmlProcessor.CONTROLLER_NAME, methodName,
+                                                      identifier))
+                      .or(() -> methodResolver.resolveFieldRequiredPublicIfExists(controllerClass, identifier)
+                                              .filter(field -> typeResolver.isAssignableFrom(field.getType(),
+                                                                                             valueClass))
+                                              .map(Field::getName)
+                                              .map(fieldName -> CodeBlock.of("$1L.$2L = $2L",
+                                                                             FxmlProcessor.CONTROLLER_NAME, fieldName)))
+                      .ifPresent(objectInitializationBuilder::addStatement);
     }
 
     private void processHandlerProperty(FxmlProperty.EventHandler eventHandler) {
         String eventName = eventHandler.eventName();
         Handler handler = eventHandler.handler();
-        Method handlerSetter = resolver.resolveSetterRequiredPublicIfExists(objectClass, eventName,
-                                                                            resolver.resolveRequired(
-                                                                                    EVENT_HANDLER_CLASS)).orElse(null);
+        Method handlerSetter = methodResolver.resolveSetterRequiredPublicIfExists(objectType, eventName,
+                                                                                  typeResolver.resolve(
+                                                                                          EVENT_HANDLER_CLASS))
+                                             .orElse(null);
         if (handlerSetter != null) {
             processHandlerSetter(handler, handlerSetter);
             return;
         }
 
-        Matcher propertyMatcher = CHANGE_PROPERTY_PATTERN.matcher(eventName);
-        if (propertyMatcher.matches()) {
-            String property = propertyMatcher.group("property");
+        if (eventName.startsWith("on") && eventName.endsWith("Change")) {
+            String property = eventName.substring(2, eventName.length() - 6);
             processPropertyChangeListener(handler, property);
             return;
         }
 
-        throw new UnsupportedOperationException("Unknown event %s for class %s".formatted(eventName, objectClass));
+        throw new UnsupportedOperationException("Unknown event %s for class %s".formatted(eventName, objectType));
     }
 
     private void processHandlerSetter(Handler handler, Method handlerSetter) {
         Type handlerType = handlerSetter.getGenericParameterTypes()[0];
         Class<?> eventClass;
         if (handlerType instanceof ParameterizedType parameterizedType) {
-            Class<?>[] typeArgumentBounds = resolver.resolveLowerBoundTypeArguments(parameterizedType);
+            Class<?>[] typeArgumentBounds = typeResolver.resolveLowerBoundTypeArguments(parameterizedType);
             if (typeArgumentBounds.length != 1) {
                 throw new IllegalArgumentException(
                         "Unable to determine bounds of handler type %s".formatted(handlerType));
@@ -670,14 +856,15 @@ public class ObjectNodeProcessor {
     }
 
     private void processPropertyChangeListener(Handler handler, String property) {
-        Method propertyMethod = resolver.resolveProperty(objectClass, property)
-                                        .orElseThrow(() -> new IllegalArgumentException(
-                                                "Unable to find property method for %s".formatted(property)));
+        Method propertyMethod = methodResolver.resolveProperty(objectType, property)
+                                              .orElseThrow(() -> new IllegalArgumentException(
+                                                      "Unable to find property method for %s".formatted(property)));
 
-        Class<?> propertyClass = resolver.resolveGetter(objectClass, property)
-                                         .map(Method::getReturnType)
-                                         .orElseThrow(() -> new IllegalArgumentException(
-                                                 "Unable to determine the class of property %s".formatted(property)));
+        Class<?> propertyClass = methodResolver.resolveGetter(objectType, property)
+                                               .map(Method::getReturnType)
+                                               .orElseThrow(() -> new IllegalArgumentException(
+                                                       "Unable to determine the class of property %s".formatted(
+                                                               property)));
 
         CodeBlock valueCode = resolveControllerPropertyChangeListener(propertyClass, handler);
         objectInitializationBuilder.addStatement("$L.$L().addListener($L)", objectIdentifier, propertyMethod.getName(),
@@ -689,43 +876,45 @@ public class ObjectNodeProcessor {
             throw new UnsupportedOperationException("None method handlers not supported");
         }
 
-        return resolver.findMethod(controllerClass, methodName, eventType)
-                       .map(method -> {
-                           if (method.getExceptionTypes().length == 0) {
-                               return CodeBlock.of("$L::$L", FxmlProcessor.CONTROLLER_NAME, method.getName());
-                           } else {
-                               return CodeBlock.builder()
-                                               .add("event -> {\n")
-                                               .indent()
-                                               .beginControlFlow("try")
-                                               .add("$L.$L(event);\n", FxmlProcessor.CONTROLLER_NAME, method.getName())
-                                               .nextControlFlow("catch ($T e)", Exception.class)
-                                               .add("throw new $T(e);\n", RuntimeException.class)
-                                               .endControlFlow()
-                                               .unindent()
-                                               .add("}")
-                                               .build();
-                           }
-                       })
-                       .or(() -> resolver.findMethod(controllerClass, methodName).map(method -> {
-                           if (method.getExceptionTypes().length == 0) {
-                               return CodeBlock.of("event -> $L.$L()", FxmlProcessor.CONTROLLER_NAME, method.getName());
-                           } else {
-                               return CodeBlock.builder()
-                                               .add("event -> {\n")
-                                               .indent()
-                                               .beginControlFlow("try")
-                                               .add("$L.$L();\n", FxmlProcessor.CONTROLLER_NAME, method.getName())
-                                               .nextControlFlow("catch ($T e)", Exception.class)
-                                               .add("throw new $T(e);\n", RuntimeException.class)
-                                               .endControlFlow()
-                                               .unindent()
-                                               .add("}")
-                                               .build();
-                           }
-                       }))
-                       .orElseThrow(() -> new IllegalArgumentException(
-                               "No method %s on %s".formatted(methodName, controllerClass)));
+        return methodResolver.findMethod(controllerClass, methodName, eventType)
+                             .map(method -> {
+                                 if (method.getExceptionTypes().length == 0) {
+                                     return CodeBlock.of("$L::$L", FxmlProcessor.CONTROLLER_NAME, method.getName());
+                                 } else {
+                                     return CodeBlock.builder()
+                                                     .add("event -> {\n")
+                                                     .indent()
+                                                     .beginControlFlow("try")
+                                                     .add("$L.$L(event);\n", FxmlProcessor.CONTROLLER_NAME,
+                                                          method.getName())
+                                                     .nextControlFlow("catch ($T e)", Exception.class)
+                                                     .add("throw new $T(e);\n", RuntimeException.class)
+                                                     .endControlFlow()
+                                                     .unindent()
+                                                     .add("}")
+                                                     .build();
+                                 }
+                             })
+                             .or(() -> methodResolver.findMethod(controllerClass, methodName).map(method -> {
+                                 if (method.getExceptionTypes().length == 0) {
+                                     return CodeBlock.of("event -> $L.$L()", FxmlProcessor.CONTROLLER_NAME,
+                                                         method.getName());
+                                 } else {
+                                     return CodeBlock.builder()
+                                                     .add("event -> {\n")
+                                                     .indent()
+                                                     .beginControlFlow("try")
+                                                     .add("$L.$L();\n", FxmlProcessor.CONTROLLER_NAME, method.getName())
+                                                     .nextControlFlow("catch ($T e)", Exception.class)
+                                                     .add("throw new $T(e);\n", RuntimeException.class)
+                                                     .endControlFlow()
+                                                     .unindent()
+                                                     .add("}")
+                                                     .build();
+                                 }
+                             }))
+                             .orElseThrow(() -> new IllegalArgumentException(
+                                     "No method %s on %s".formatted(methodName, controllerClass)));
     }
 
     private CodeBlock resolveControllerPropertyChangeListener(Class<?> valueClass, Handler handler) {
@@ -733,16 +922,16 @@ public class ObjectNodeProcessor {
             throw new UnsupportedOperationException("Non method change listeners not supported");
         }
 
-        Method changeMethod = resolver.findMethod(controllerClass, methodName,
-                                                  resolver.resolveRequired(OBSERVABLE_VALUE_CLASS), valueClass,
-                                                  valueClass)
-                                      .orElseThrow(() -> new IllegalArgumentException(
-                                              "Unable to find change method for name %s and property type %s".formatted(
-                                                      methodName, valueClass)));
+        Method changeMethod = methodResolver.findMethod(controllerClass, methodName,
+                                                        typeResolver.resolve(OBSERVABLE_VALUE_CLASS), valueClass,
+                                                        valueClass)
+                                            .orElseThrow(() -> new IllegalArgumentException(
+                                                    "Unable to find change method for name %s and property type %s".formatted(
+                                                            methodName, valueClass)));
 
         Type observableType = changeMethod.getGenericParameterTypes()[0];
         if (observableType instanceof ParameterizedType parameterizedType &&
-            resolver.hasNonMatchingWildcardUpperBounds(parameterizedType, valueClass)) {
+            typeResolver.hasNonMatchingWildcardUpperBounds(parameterizedType, valueClass)) {
             throw new IllegalArgumentException(
                     "Observable value parameter does not match signature of change listener as Observable Value does not have lower bound %s".formatted(
                             valueClass));
@@ -751,282 +940,37 @@ public class ObjectNodeProcessor {
         return CodeBlock.of("$L::$L", FxmlProcessor.CONTROLLER_NAME, changeMethod.getName());
     }
 
-    private void processPropertySetter(Concrete value, Method propertySetter) {
-        if (value instanceof Concrete.Empty) {
-            return;
-        }
-
-        Class<?> valueType = propertySetter.getParameterTypes()[0];
-        CodeBlock valueCode = coerceValue(valueType, value);
-        objectInitializationBuilder.addStatement("$L.$L($L)", objectIdentifier, propertySetter.getName(), valueCode);
-    }
-
-    private void processPropertyExpression(Expression value, Method propertyMethod) {
-        Type valueType = propertyMethod.getGenericReturnType();
-        resolver.findMethod(valueType, "bind", 1);
-        ExpressionResult result = initializeExpression(value);
-        objectInitializationBuilder.addStatement("$L.$L().bind($L)", objectIdentifier, propertyMethod.getName(),
-                                                 result.identifier());
-    }
-
-    private ExpressionResult initializeExpression(Expression value) {
-        return switch (value) {
-            case Expression.Null() -> new ExpressionResult(Object.class, null);
-            case Expression.Whole(long val) -> {
-                String identifier = resolver.getDeconflictedName(long.class);
-                objectInitializationBuilder.addStatement("$T $L = $L", long.class, identifier, val);
-                yield new ExpressionResult(long.class, identifier);
-            }
-            case Expression.Fraction(double val) -> {
-                String identifier = resolver.getDeconflictedName(double.class);
-                objectInitializationBuilder.addStatement("$T $L = $L", double.class, identifier, val);
-                yield new ExpressionResult(double.class, identifier);
-            }
-            case Expression.Boolean(boolean val) -> {
-                String identifier = resolver.getDeconflictedName(boolean.class);
-                objectInitializationBuilder.addStatement("$T $L = $L", boolean.class, identifier, val);
-                yield new ExpressionResult(boolean.class, identifier);
-            }
-            case Expression.Str(String val) -> {
-                String identifier = resolver.getDeconflictedName(String.class);
-                objectInitializationBuilder.addStatement("$T $L = $L", String.class, identifier, val);
-                yield new ExpressionResult(String.class, identifier);
-            }
-            case Expression.Variable(String name) -> new ExpressionResult(resolver.getStoredTypeById(name), name);
-            case Expression.PropertyRead(Expression expression, String property) -> {
-                ExpressionResult expressionResult = initializeExpression(expression);
-                Method readProperty = resolver.resolveProperty(expressionResult.type(), property)
-                                              .orElseThrow(() -> new IllegalArgumentException(
-                                                      "No property found for expression binding %s".formatted(
-                                                              property)));
-                Type valueType = readProperty.getGenericReturnType();
-                String identifier = resolver.getDeconflictedName(valueType);
-                objectInitializationBuilder.addStatement("$T $L = $L.$L()", valueType, identifier,
-                                                         expressionResult.identifier(), readProperty.getName());
-                yield new ExpressionResult(valueType, identifier);
-            }
-            case Expression.MethodCall(
-                    Expression expression, String methodName, List<Expression> args
-            ) -> {
-                ExpressionResult expressionResult = initializeExpression(expression);
-                List<ExpressionResult> argResults = args.stream().map(this::initializeExpression).toList();
-                Type[] parameterTypes = argResults.stream()
-                                                  .map(ExpressionResult::type)
-                                                  .toArray(Type[]::new);
-                Method method = resolver.findMethod(expressionResult.type(), methodName,
-                                                    parameterTypes)
-                                        .orElseThrow(() -> new IllegalArgumentException(
-                                                "No method found for class %s method name %s and parameters %s".formatted(
-                                                        expressionResult.type(), methodName, parameterTypes)));
-                Type valueType = method.getGenericReturnType();
-                String identifier = resolver.getDeconflictedName(valueType);
-                CodeBlock methodArgs = argResults.stream()
-                                                 .map(ExpressionResult::identifier)
-                                                 .map(ident -> CodeBlock.of("$S", ident))
-                                                 .collect(CodeBlock.joining(", "));
-                objectInitializationBuilder.addStatement("$T $L = $L.$L($L)", valueType, identifier,
-                                                         expressionResult.identifier(), method.getName(), methodArgs);
-                yield new ExpressionResult(valueType, identifier);
-            }
-            case Expression.CollectionAccess(Expression expression, Expression key) -> {
-                ExpressionResult expressionResult = initializeExpression(expression);
-                ExpressionResult keyResult = initializeExpression(key);
-                Class<?> bindingsClass = resolver.resolveRequired("javafx.beans.binding.Bindings");
-                Method valueAtMethod = resolver.findMethod(bindingsClass, "valueAt", expressionResult.type(),
-                                                           keyResult.type())
-                                               .orElseThrow(() -> new IllegalArgumentException(
-                                                       "Unable to find method to access collection"));
-                Type valueType = valueAtMethod.getGenericReturnType();
-                String identifier = resolver.getDeconflictedName(valueType);
-                objectInitializationBuilder.addStatement("$T $L = $T.$L($L, $L)", valueType, identifier, bindingsClass,
-                                                         valueAtMethod.getName(), expressionResult.identifier(),
-                                                         keyResult.identifier());
-                yield new ExpressionResult(valueType, identifier);
-            }
-            case Expression.Add(Expression left, Expression right) ->
-                    computeExpressionWithMethod(left, right, "add").or(
-                                                                           () -> computeExpressionWithMethod(left, right, "concat"))
-                                                                   .orElseThrow(() -> new IllegalArgumentException(
-                                                                           "Cannot add %s and %s".formatted(left,
-                                                                                                            right)));
-
-            case Expression.Subtract(Expression left, Expression right) ->
-                    computeExpressionWithMethod(left, right, "subtract").orElseThrow(
-                            () -> new IllegalArgumentException("Cannot subtract %s and %s".formatted(left, right)));
-            case Expression.Multiply(Expression left, Expression right) ->
-                    computeExpressionWithMethod(left, right, "multiply").orElseThrow(
-                            () -> new IllegalArgumentException("Cannot multiply %s and %s".formatted(left, right)));
-            case Expression.Divide(Expression left, Expression right) ->
-                    computeExpressionWithMethod(left, right, "divide").orElseThrow(
-                            () -> new IllegalArgumentException("Cannot divide %s and %s".formatted(left, right)));
-            case Expression.GreaterThan(Expression left, Expression right) ->
-                    computeExpressionWithMethod(left, right, "greaterThan").orElseThrow(
-                            () -> new IllegalArgumentException("Cannot greaterThan %s and %s".formatted(left, right)));
-            case Expression.GreaterThanEqual(Expression left, Expression right) ->
-                    computeExpressionWithMethod(left, right, "greaterThanEqual").orElseThrow(
-                            () -> new IllegalArgumentException(
-                                    "Cannot greaterThanEqual %s and %s".formatted(left, right)));
-            case Expression.LessThan(Expression left, Expression right) ->
-                    computeExpressionWithMethod(left, right, "lessThan").orElseThrow(
-                            () -> new IllegalArgumentException("Cannot lessThan %s and %s".formatted(left, right)));
-            case Expression.LessThanEqual(Expression left, Expression right) ->
-                    computeExpressionWithMethod(left, right, "lessThanEqual").orElseThrow(
-                            () -> new IllegalArgumentException(
-                                    "Cannot lessThanEqual %s and %s".formatted(left, right)));
-            case Expression.Equal(Expression left, Expression right) ->
-                    computeExpressionWithMethod(left, right, "equal").orElseThrow(
-                            () -> new IllegalArgumentException("Cannot equal %s and %s".formatted(left, right)));
-            case Expression.NotEqual(Expression left, Expression right) ->
-                    computeExpressionWithMethod(left, right, "notEqual").orElseThrow(
-                            () -> new IllegalArgumentException("Cannot notEqual %s and %s".formatted(left, right)));
-            case Expression.And(Expression left, Expression right) ->
-                    computeExpressionWithMethod(left, right, "and").orElseThrow(
-                            () -> new IllegalArgumentException("Cannot and %s and %s".formatted(left, right)));
-            case Expression.Or(Expression left, Expression right) ->
-                    computeExpressionWithMethod(left, right, "or").orElseThrow(
-                            () -> new IllegalArgumentException("Cannot or %s and %s".formatted(left, right)));
-            case Expression.Invert(Expression expression) -> computeExpressionWithMethod(expression, "not").orElseThrow(
-                    () -> new IllegalArgumentException("Cannot not %s".formatted(expression)));
-            case Expression.Negate(Expression expression) ->
-                    computeExpressionWithMethod(expression, "negate").orElseThrow(
-                            () -> new IllegalArgumentException("Cannot negate %s".formatted(expression)));
-            case Expression.Modulo(Expression left, Expression right) ->
-                    throw new UnsupportedOperationException("Modulo operation not supported");
-        };
-    }
-
-    private Optional<ExpressionResult> computeExpressionWithMethod(Expression left, Expression right,
-                                                                   String methodName) {
-        ExpressionResult leftResult = initializeExpression(left);
-        ExpressionResult rightResult = initializeExpression(right);
-
-        Method directMethod = resolver.findMethod(leftResult.type(), methodName, rightResult.type()).orElse(null);
-        if (directMethod != null) {
-            Type valueType = directMethod.getGenericReturnType();
-            String identifier = resolver.getDeconflictedName(valueType);
-            objectInitializationBuilder.addStatement("$T $L = $L.$L($L)", valueType, identifier,
-                                                     leftResult.identifier(), directMethod.getName(),
-                                                     rightResult.identifier());
-            return Optional.of(new ExpressionResult(valueType, identifier));
-        }
-
-        Class<?> bindingsClass = resolver.resolveRequired("javafx.beans.binding.Bindings");
-        Method indirectMethod = resolver.findMethod(bindingsClass, methodName, leftResult.type(), rightResult.type())
-                                        .orElseThrow(() -> new IllegalArgumentException(
-                                                "Unable to find method to combine expressions"));
-        if (indirectMethod != null) {
-            Type valueType = indirectMethod.getGenericReturnType();
-            String identifier = resolver.getDeconflictedName(valueType);
-            objectInitializationBuilder.addStatement("$T $L = $T.$L($L, $L)", valueType, identifier, bindingsClass,
-                                                     indirectMethod.getName(), leftResult.identifier(),
-                                                     rightResult.identifier());
-            return Optional.of(new ExpressionResult(valueType, identifier));
-        }
-
-        return Optional.empty();
-    }
-
-    private Optional<ExpressionResult> computeExpressionWithMethod(Expression value, String methodName) {
-        ExpressionResult result = initializeExpression(value);
-
-        Method directMethod = resolver.findMethod(result.type(), methodName).orElse(null);
-        if (directMethod != null) {
-            Type valueType = directMethod.getGenericReturnType();
-            String identifier = resolver.getDeconflictedName(valueType);
-            objectInitializationBuilder.addStatement("$T $L = $L.$L()", valueType, identifier, result.identifier(),
-                                                     directMethod.getName());
-            return Optional.of(new ExpressionResult(valueType, identifier));
-        }
-
-        Class<?> bindingsClass = resolver.resolveRequired("javafx.beans.binding.Bindings");
-        Method indirectMethod = resolver.findMethod(bindingsClass, methodName, result.type()).orElse(null);
-        if (indirectMethod != null) {
-            Type valueType = indirectMethod.getGenericReturnType();
-            String identifier = resolver.getDeconflictedName(valueType);
-            objectInitializationBuilder.addStatement("$T $L = $T.$L($L)", valueType, identifier, bindingsClass,
-                                                     indirectMethod.getName(), result.identifier());
-            return Optional.of(new ExpressionResult(valueType, identifier));
-        }
-
-        return Optional.empty();
-    }
-
-    private void processStaticPropertySingle(String className, String property, Value value) {
-        if (!(value instanceof Concrete concrete)) {
-            throw new IllegalArgumentException("Cannot set static property with non concrete value");
-        }
-
-        Class<?> staticPropertyClass = resolver.resolveRequired(className);
-        Method propertySetter = resolver.resolveStaticSetter(staticPropertyClass, property).orElse(null);
-        if (propertySetter == null) {
-            throw new IllegalArgumentException(
-                    "Unable to find static setter for %s on %s".formatted(property, staticPropertyClass));
-        }
-        Class<?> objectType = propertySetter.getParameterTypes()[0];
-
-        if (!resolver.isAssignableFrom(objectType, objectClass)) {
-            throw new IllegalArgumentException("First parameter of static property setter does not match node type");
-        }
-
-        Class<?> valueType = propertySetter.getParameterTypes()[1];
-        CodeBlock valueCode = coerceValue(valueType, concrete);
-        objectInitializationBuilder.addStatement("$T.$L($L, $L)", staticPropertyClass, propertySetter.getName(),
-                                                 objectIdentifier, valueCode);
-    }
-
-    private void processPropertiesOnProperty(String property, Collection<FxmlProperty.Instance> properties) {
-        Method propertyGetter = resolver.resolveGetter(objectClass, property)
-                                        .orElseThrow(() -> new IllegalArgumentException(
-                                                "Unable to find getter for property %s on class %s".formatted(property,
-                                                                                                              objectClass)));
-
-
-        properties.forEach(prop -> {
-            switch (prop) {
-                case EventHandlerAttribute eventHandler when ON_CHANGE.equals(eventHandler.eventName()) -> {
-                    Handler handler = eventHandler.handler();
-
-                    resolver.resolveProperty(objectClass, property)
-                            .ifPresentOrElse(propertyMethod -> processPropertyChangeListener(handler, property),
-                                             () -> processPropertyContainerListener(propertyGetter, handler));
-                }
-                case FxmlProperty.Instance instance -> {
-                    Type propertyClass = propertyGetter.getGenericReturnType();
-                    Class<?>[] typeArguments = resolver.resolveUpperBoundTypeArguments(propertyClass);
-                    if (typeArguments == null || typeArguments.length != 2) {
-                        throw new IllegalArgumentException(
-                                "Property %s does not represent a map with two type arguments".formatted(property));
-                    }
-
-                    Class<?> keyClass = typeArguments[0];
-                    Class<?> valueClass = typeArguments[1];
-                    addPropertyToMapWithTypeBounds(CodeBlock.of("$L.$L()", objectIdentifier, propertyGetter.getName()),
-                                                   instance, keyClass, valueClass);
-                }
-            }
-        });
+    private void processHandlerOnProperty(String propertyName, Handler handler) {
+        methodResolver.resolveProperty(objectType, propertyName)
+                      .ifPresentOrElse(propertyMethod -> processPropertyChangeListener(handler, propertyName), () -> {
+                          Method propertyGetter = methodResolver.resolveGetter(objectType, propertyName)
+                                                                .orElseThrow(() -> new IllegalArgumentException(
+                                                                        "Unable to find getter for %s on class %s".formatted(
+                                                                                propertyName, objectType)));
+                          processPropertyContainerListener(propertyGetter, handler);
+                      });
     }
 
     private CodeBlock resolveControllerContainerChangeListener(Type valueType, Handler handler) {
         if (!(handler instanceof Handler.Method(String methodName))) {
             throw new UnsupportedOperationException("Non method handlers not supported");
         }
-        Class<?> valueClass = resolver.resolveClassFromType(valueType);
-        Class<?>[] boundTypeArguments = resolver.resolveUpperBoundTypeArguments(valueType);
+        Class<?> valueClass = typeResolver.resolveClassFromType(valueType);
+        Type[] boundTypeArguments = typeResolver.resolveUpperBoundTypeArguments(valueType);
 
         return COLLECTION_LISTENER_MAP.entrySet()
                                       .stream()
-                                      .filter(entry -> resolver.resolveRequired(entry.getKey())
-                                                               .isAssignableFrom(valueClass))
+                                      .filter(entry -> typeResolver.resolve(entry.getKey())
+                                                                   .isAssignableFrom(valueClass))
                                       .map(Map.Entry::getValue)
-                                      .map(resolver::resolveRequired)
+                                      .map(typeResolver::resolve)
                                       .findFirst()
-                                      .flatMap(changeClass -> resolver.findMethod(controllerClass, methodName,
-                                                                                  changeClass))
+                                      .flatMap(changeClass -> methodResolver.findMethod(controllerClass, methodName,
+                                                                                        changeClass))
                                       .filter(method -> {
                                           Type parameterType = method.getGenericParameterTypes()[0];
-                                          return resolver.parameterTypeArgumentsMeetBounds(parameterType,
-                                                                                           boundTypeArguments);
+                                          return typeResolver.typeArgumentsMeetBounds(parameterType,
+                                                                                      boundTypeArguments);
                                       })
                                       .map(method -> CodeBlock.of("$L::$L", FxmlProcessor.CONTROLLER_NAME,
                                                                   method.getName()))
@@ -1035,206 +979,52 @@ public class ObjectNodeProcessor {
                                                       methodName, valueType)));
     }
 
-    private void processPropertyClassInstanceElement(String property, ClassInstanceElement element) {
-        Method propertySetter = resolver.resolveSetter(objectClass, property).orElse(null);
-        if (propertySetter != null) {
-            processPropertyChildSetter(element, propertySetter);
-        } else {
-            processPropertyElements(property, List.of(element));
-        }
-    }
-
     private void processPropertyContainerListener(Method propertyGetter, Handler handler) {
         CodeBlock listener = resolveControllerContainerChangeListener(propertyGetter.getGenericReturnType(), handler);
         objectInitializationBuilder.addStatement("$L.$L().addListener($L)", objectIdentifier, propertyGetter.getName(),
                                                  listener);
     }
 
-    private void processCollectionInitialization(String value, ParameterizedType parameterizedType, String propertyName,
-                                                 Method propertyGetter) {
-        objectInitializationBuilder.addStatement("$T $L = $L.$L()",
-                                                 resolver.resolveTypeNameWithoutVariables(parameterizedType),
-                                                 propertyName, objectIdentifier, propertyGetter.getName());
-        Type[] actualTypeArguments = parameterizedType.getActualTypeArguments();
-        if (actualTypeArguments.length != 1) {
+    private void addToCollectionWithTypeBound(CodeBlock collectionCodeBlock, ClassInstanceElement element,
+                                              Type contentTypeBound) {
+        ObjectNodeCode nodeCode = buildChildNode(element);
+        if (!typeResolver.isAssignableFrom(contentTypeBound, nodeCode.nodeClass())) {
             throw new IllegalArgumentException(
-                    "Unable to resolve contained type for type %s".formatted(parameterizedType));
+                    "Content type bound %s does not match node type %s".formatted(contentTypeBound,
+                                                                                  nodeCode.nodeClass()));
         }
-        Class<?> containedClassBound = resolver.resolveTypeUpperBound(actualTypeArguments[0]);
-        Arrays.stream(value.split(",\\s*"))
-              .forEach(val -> addToCollectionWithTypeBound(
-                      CodeBlock.of("$L.$L()", objectIdentifier, propertyGetter.getName()), new Concrete.Literal(val),
-                      containedClassBound));
+
+        objectInitializationBuilder.addStatement("$L.add($L)", collectionCodeBlock, nodeCode.nodeIdentifier());
     }
 
-    private void processPropertyChildSetter(ClassInstanceElement propertyNode, Method propertySetter) {
-        ObjectNodeCode nodeCode = buildChildNode(propertyNode);
+    private void processCopyInitialization(String source) {
+        objectType = nameResolver.resolveTypeById(source);
 
-        Class<?> parameterType = propertySetter.getParameterTypes()[0];
-        if (!resolver.isAssignableFrom(parameterType, nodeCode.nodeClass())) {
+        if (!methodResolver.hasCopyConstructor(objectType)) {
+            throw new IllegalArgumentException("No copy constructor found for class %s".formatted(objectType));
+        }
+
+        objectIdentifier = source + "Copy";
+        objectInitializationBuilder.addStatement("$1T $2L = new $1T($3L)", objectType, objectIdentifier, source);
+    }
+
+    private void addToMapWithTypeBounds(CodeBlock mapBlock, String key, ClassInstanceElement element, Type keyTypeBound,
+                                        Type valueTypeBound) {
+        ObjectNodeCode nodeCode = buildChildNode(element);
+        if (!typeResolver.isAssignableFrom(valueTypeBound, nodeCode.nodeClass())) {
             throw new IllegalArgumentException(
-                    "Parameter type `%s` does not match node type `%s`".formatted(parameterType, nodeCode.nodeClass()));
+                    "Content type bound %s does not match node type %s".formatted(valueTypeBound,
+                                                                                  nodeCode.nodeClass()));
         }
 
-        objectInitializationBuilder.addStatement("$L.$L($L)", objectIdentifier, propertySetter.getName(),
-                                                 nodeCode.nodeIdentifier());
+        CodeBlock keyValue = CodeBlockUtils.convertToCodeBlock(valueResolver.resolveCodeValue(keyTypeBound, key));
+        objectInitializationBuilder.addStatement("$L.put($L, $L)", mapBlock, keyValue, nodeCode.nodeIdentifier());
     }
 
-    private void processDefaultProperty() {
-        if (defaultPropertyChildren.isEmpty()) {
-            return;
-        }
-
-        if (resolver.isAssignableFrom(Collection.class, objectClass)) {
-            Class<?> contentTypeBound = typeArguments == null ? Object.class : typeArguments[0];
-            defaultPropertyChildren.forEach(value -> {
-                if (!(value instanceof Concrete concrete)) {
-                    throw new IllegalArgumentException("Cannot add non concrete value to collection");
-                }
-                addToCollectionWithTypeBound(CodeBlock.of("$L", objectIdentifier), concrete, contentTypeBound);
-            });
-            return;
-        }
-
-        if (resolver.isAssignableFrom(Map.class, objectClass)) {
-            List<FxmlProperty.Instance> properties = defaultPropertyChildren.stream().map(value -> {
-                if (value instanceof Concrete.Element(FxmlProperty.Instance element)) {
-                    return element;
-                }
-
-                if (value instanceof Concrete.Attribute(FxmlProperty.Instance attribute)) {
-                    return attribute;
-                }
-
-                throw new ParseException("Map property contains a non property element");
-            }).toList();
-            Class<?> keyTypeBound = typeArguments == null ? Object.class : typeArguments[0];
-            Class<?> valueTypeBound = typeArguments == null ? Object.class : typeArguments[1];
-            properties.forEach(
-                    attribute -> addPropertyToMapWithTypeBounds(CodeBlock.of("$L", objectIdentifier), attribute,
-                                                                keyTypeBound, valueTypeBound));
-            return;
-        }
-
-        String defaultProperty = resolver.getDefaultProperty(objectClass);
-        if (defaultProperty != null) {
-            processInstanceProperty(defaultProperty, new Value.Multi(defaultPropertyChildren));
-            return;
-        }
-
-
-        throw new IllegalArgumentException("Unable to handle default children for class %s".formatted(objectClass));
+    private ObjectNodeCode buildChildNode(ClassInstanceElement element) {
+        ObjectNodeCode nodeCode = new ObjectNodeProcessor(element, controllerClass, resolverContainer, filePath,
+                                                          resourceRootPath, rootPackage).getNodeCode();
+        objectInitializationBuilder.add(nodeCode.objectInitializationCode());
+        return nodeCode;
     }
-
-    private void processPropertyElements(String property, Collection<ClassInstanceElement> childNodes) {
-        Method propertyGetter = resolver.resolveGetter(objectClass, property)
-                                        .orElseThrow(() -> new IllegalStateException(
-                                                "Cannot find getter for property %s".formatted(property)));
-        Class<?> propertyClass = propertyGetter.getReturnType();
-
-        if (resolver.isAssignableFrom(Collection.class, propertyClass)) {
-            List<ClassInstanceElement> classInstanceElements = childNodes.stream().map(element -> {
-                if (!(element instanceof ClassInstanceElement classInstanceElement)) {
-                    throw new ParseException("property element contains a non common element");
-                }
-
-                return classInstanceElement;
-            }).toList();
-
-            Type genericReturnType = propertyGetter.getGenericReturnType();
-            if (!(genericReturnType instanceof ParameterizedType parameterizedType)) {
-                throw new IllegalArgumentException("Cannot determine bounds of collection");
-            }
-
-            Class<?>[] collectionTypeBounds = resolver.resolveUpperBoundTypeArguments(parameterizedType);
-            if (collectionTypeBounds.length != 1) {
-                throw new IllegalArgumentException("Cannot determine bounds of collection contents");
-            }
-
-            Class<?> contentTypeBound = collectionTypeBounds[0];
-            classInstanceElements.forEach(element -> addToCollectionWithTypeBound(
-                    CodeBlock.of("$L.$L()", objectIdentifier, propertyGetter.getName()), new Concrete.Element(element),
-                    contentTypeBound));
-            return;
-        }
-
-        throw new UnsupportedOperationException("Unknown read only property type %s".formatted(propertyClass));
-    }
-
-    private void addToCollectionWithTypeBound(CodeBlock collectionCodeBlock, Concrete value,
-                                              Class<?> contentTypeBound) {
-        objectInitializationBuilder.addStatement("$L.add($L)", collectionCodeBlock,
-                                                 coerceValue(contentTypeBound, value));
-    }
-
-    private CodeBlock coerceValue(Type valueType, Concrete value) {
-        return switch (value) {
-            case Concrete.Element(ClassInstanceElement element) -> {
-                ObjectNodeCode nodeCode = buildChildNode(element);
-                if (!resolver.isAssignableFrom(resolver.resolveClassFromType(valueType), nodeCode.nodeClass())) {
-                    throw new IllegalArgumentException(
-                            "Cannot assign %s to %s".formatted(nodeCode.nodeClass(), valueType));
-                }
-                yield CodeBlock.of("$L", nodeCode.nodeIdentifier());
-            }
-            case Concrete.Location ignored ->
-                    throw new UnsupportedOperationException("Location resolution not yet supported");
-            case Concrete.Reference(String reference) -> {
-                Class<?> referenceClass = resolver.getStoredClassById(reference);
-                if (!resolver.isAssignableFrom(resolver.resolveClassFromType(valueType), referenceClass)) {
-                    throw new IllegalArgumentException("Cannot assign %s to %s".formatted(referenceClass, valueType));
-                }
-
-                yield CodeBlock.of("$L", reference);
-            }
-            case Concrete.Resource(String resource) when valueType == String.class ->
-                    CodeBlock.of("$1L.getString($2S)", FxmlProcessor.RESOURCES_NAME, resource);
-            case Concrete.Literal(String val) when valueType == String.class -> CodeBlock.of("$S", val);
-            case Concrete.Literal(String val) -> coerceValue(valueType, val);
-            default -> throw new UnsupportedOperationException(
-                    "Cannot create type %s from %s".formatted(valueType, value));
-        };
-    }
-
-    private CodeBlock coerceValue(Type valueType, String value) {
-        Class<?> rawType = resolver.resolveClassFromType(valueType);
-        if (rawType.isArray()) {
-            Class<?> componentType = rawType.getComponentType();
-            CodeBlock arrayInitializer = Arrays.stream(value.split(","))
-                                               .map(componentString -> coerceValue(componentType, componentString))
-                                               .collect(CodeBlock.joining(", "));
-            return CodeBlock.of("new $T{$L}", valueType, arrayInitializer);
-        }
-
-        if (rawType == String.class) {
-            return CodeBlock.of("$S", value);
-        }
-
-        if (rawType.isPrimitive()) {
-            Class<?> boxedType = MethodType.methodType(rawType).wrap().returnType();
-            Method method = resolver.findMethod(boxedType, "parse%s".formatted(boxedType.getSimpleName()), String.class)
-                                    .orElse(null);
-            if (method != null) {
-                try {
-                    return coerceUsingValueOfMethodResults(value, method, boxedType);
-                } catch (IllegalAccessException | InvocationTargetException ignored) {}
-            }
-        }
-
-        Class<?> boxedType = MethodType.methodType(rawType).wrap().returnType();
-        Method method = resolver.findMethod(boxedType, "valueOf", String.class).orElse(null);
-        if (method != null) {
-            try {
-                return coerceUsingValueOfMethodResults(value, method, boxedType);
-            } catch (IllegalAccessException | InvocationTargetException ignored) {}
-        }
-
-        if (valueType == Object.class) {
-            return CodeBlock.of("$S", value);
-        }
-
-        throw new UnsupportedOperationException("Cannot create type %s from %s".formatted(valueType, value));
-    }
-
-    private record ExpressionResult(Type type, String identifier) {}
 }

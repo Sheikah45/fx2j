@@ -11,8 +11,8 @@ import org.antlr.v4.runtime.CommonTokenStream;
 import java.util.List;
 import java.util.Objects;
 
-sealed public interface Expression extends Value.Single {
-    static Expression parse(String expression) {
+sealed public interface Expression extends Value {
+    static Expression parse(java.lang.String expression) {
         CodePointCharStream charStream = CharStreams.fromString(expression);
         BindExpressionLexer expressionLexer = new BindExpressionLexer(charStream);
         CommonTokenStream commonTokenStream = new CommonTokenStream(expressionLexer);
@@ -20,15 +20,15 @@ sealed public interface Expression extends Value.Single {
         return expressionParser.expression().accept(new BindExpressionVisitorImpl());
     }
 
-    record PropertyRead(Expression expression, String property) implements Expression {
+    record PropertyRead(Expression expression, java.lang.String property) implements Expression {
         public PropertyRead {
             Objects.requireNonNull(expression, "expression cannot be null");
             if (StringUtils.isNullOrBlank(property)) {
-                throw new IllegalArgumentException("property cannot be blank or null");
+                throw new IllegalArgumentException("propertyName cannot be blank or null");
             }
         }
     }
-    record MethodCall(Expression expression, String methodName, List<Expression> args) implements Expression {
+    record MethodCall(Expression expression, java.lang.String methodName, List<Expression> args) implements Expression {
         public MethodCall {
             Objects.requireNonNull(expression, "expression cannot be null");
             Objects.requireNonNull(args, "args cannot be null");
@@ -131,15 +131,15 @@ sealed public interface Expression extends Value.Single {
             Objects.requireNonNull(right, "right cannot be null");
         }
     }
-    record Variable(String value) implements Expression {
+    record Variable(java.lang.String value) implements Expression {
         public Variable {
             if (StringUtils.isNullOrBlank(value)) {
                 throw new IllegalArgumentException("value cannot be null or blank");
             }
         }
     }
-    record Str(String value) implements Expression {
-        public Str {
+    record String(java.lang.String value) implements Expression {
+        public String {
             Objects.requireNonNull(value, "left cannot be null");
         }
     }

@@ -14,8 +14,10 @@ import io.github.sheikah45.fx2j.parser.FxmlParser;
 import io.github.sheikah45.fx2j.parser.FxmlProcessingInstruction;
 import io.github.sheikah45.fx2j.parser.attribute.ControllerAttribute;
 import io.github.sheikah45.fx2j.processor.internal.ObjectNodeProcessor;
-import io.github.sheikah45.fx2j.processor.internal.ReflectionResolver;
 import io.github.sheikah45.fx2j.processor.internal.model.ObjectNodeCode;
+import io.github.sheikah45.fx2j.processor.internal.resolve.MethodResolver;
+import io.github.sheikah45.fx2j.processor.internal.resolve.ResolverContainer;
+import io.github.sheikah45.fx2j.processor.internal.resolve.TypeResolver;
 import io.github.sheikah45.fx2j.processor.internal.utils.JavaFileUtils;
 import io.github.sheikah45.fx2j.processor.internal.utils.StringUtils;
 
@@ -41,7 +43,9 @@ public class FxmlProcessor {
     public static final String BUILDER_PROVIDED_CONTROLLER_NAME = "builderProvidedController";
     public static final String BUILDER_PROVIDED_ROOT_NAME = "builderProvidedRoot";
 
-    private final ReflectionResolver resolver;
+    private final ResolverContainer resolverContainer;
+    private final TypeResolver typeResolver;
+    private final MethodResolver methodResolver;
     private final String rootPackage;
     private final Class<?> controllerClass;
     private final JavaFile javaFile;
@@ -58,7 +62,6 @@ public class FxmlProcessor {
      * @param rootPackage      The root package for the generated Java code.
      * @param classLoader      The class loader to use for resolving imported classes.
      */
-    @SuppressWarnings("unchecked")
     public FxmlProcessor(Path filePath, Path resourceRootPath, String rootPackage, ClassLoader classLoader) {
         this.rootPackage = rootPackage;
         Path absoluteFilePath = filePath.toAbsolutePath();
@@ -70,7 +73,9 @@ public class FxmlProcessor {
                                             .map(FxmlProcessingInstruction.Import::value)
                                             .collect(Collectors.toSet());
 
-        resolver = new ReflectionResolver(imports, classLoader);
+        resolverContainer = ResolverContainer.from(imports, classLoader);
+        typeResolver = resolverContainer.getTypeResolver();
+        methodResolver = resolverContainer.getMethodResolver();
 
         controllerClass = fxmlComponents.rootNode()
                                         .content()
@@ -88,13 +93,14 @@ public class FxmlProcessor {
                                                                         custom.name()))
                                                                 .map(FxmlProcessingInstruction.Custom::value)
                                                                 .findFirst())
-                                        .map(typeName -> (Class<Object>) resolver.resolveRequired(typeName))
+                                        .map(typeResolver::resolve)
                                         .orElse(Object.class);
 
         Path absoluteResourceRootPath = resourceRootPath.toAbsolutePath();
-        objectNodeCode = new ObjectNodeProcessor(fxmlComponents.rootNode(), controllerClass, resolver, absoluteFilePath,
+        objectNodeCode = new ObjectNodeProcessor(fxmlComponents.rootNode(), controllerClass, resolverContainer,
+                                                 absoluteFilePath,
                                                  absoluteResourceRootPath, this.rootPackage).getNodeCode();
-        rootClass = resolver.wrapType(objectNodeCode.nodeClass());
+        rootClass = typeResolver.wrapType(objectNodeCode.nodeClass());
 
         relativeFilePath = absoluteResourceRootPath.relativize(absoluteFilePath);
         String relativePackage = StringUtils.fxmlFileToPackageName(relativeFilePath);
@@ -153,7 +159,7 @@ public class FxmlProcessor {
 
         if (!controllerClass.isInterface() &&
             !java.lang.reflect.Modifier.isAbstract(controllerClass.getModifiers()) &&
-            resolver.hasDefaultConstructor(controllerClass)) {
+            methodResolver.hasDefaultConstructor(controllerClass)) {
             setControllerBuilder.nextControlFlow("else")
                                 .addStatement("$L = new $T();", CONTROLLER_NAME, controllerClass);
         }
@@ -187,8 +193,9 @@ public class FxmlProcessor {
 
 
         if (controllerClass != Object.class) {
-            resolver.findMethodRequiredPublicIfExists(controllerClass, "initialize")
-                    .ifPresent(method -> buildMethodBuilder.addStatement("$L.$L()", CONTROLLER_NAME, method.getName()));
+            methodResolver.findMethodRequiredPublicIfExists(controllerClass, "initialize")
+                          .ifPresent(method -> buildMethodBuilder.addStatement("$L.$L()", CONTROLLER_NAME,
+                                                                               method.getName()));
         }
 
         List<MethodSpec> methodSpecs = List.of(getControllerMethodSpec, setControllerMethodSpec, getRootMethodSpec,
@@ -225,7 +232,7 @@ public class FxmlProcessor {
      * @return The set of required modules.
      */
     public Set<String> getRequiredModules() {
-        return resolver.getResolvedModules();
+        return typeResolver.getResolvedModules();
     }
 
     /**

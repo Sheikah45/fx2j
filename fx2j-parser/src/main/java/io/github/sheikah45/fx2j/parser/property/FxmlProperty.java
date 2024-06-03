@@ -12,28 +12,14 @@ public sealed interface FxmlProperty {
         String className();
 
         String property();
-
-        Value value();
     }
 
     sealed interface Instance extends FxmlProperty
-            permits InstancePropertyAttribute, InstancePropertyElement, EventHandler {
-        String property();
-
-        Value value();
+            permits InstancePropertyAttribute, InstancePropertyElement {
+        String propertyName();
     }
 
-    sealed interface EventHandler extends Instance permits EventHandlerAttribute {
-        @Override
-        default String property() {
-            return eventName();
-        }
-
-        @Override
-        default Value value() {
-            return handler();
-        }
-
+    sealed interface EventHandler permits EventHandlerAttribute {
         Handler handler();
 
         String eventName();

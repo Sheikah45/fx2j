@@ -1,5 +1,6 @@
 package io.github.sheikah45.fx2j.parser;
 
+import io.github.sheikah45.fx2j.parser.attribute.AssignableAttribute;
 import io.github.sheikah45.fx2j.parser.attribute.ControllerAttribute;
 import io.github.sheikah45.fx2j.parser.attribute.DefaultNameSpaceAttribute;
 import io.github.sheikah45.fx2j.parser.attribute.EventHandlerAttribute;
@@ -8,11 +9,13 @@ import io.github.sheikah45.fx2j.parser.attribute.IdAttribute;
 import io.github.sheikah45.fx2j.parser.attribute.InstancePropertyAttribute;
 import io.github.sheikah45.fx2j.parser.attribute.NameSpaceAttribute;
 import io.github.sheikah45.fx2j.parser.attribute.StaticPropertyAttribute;
+import io.github.sheikah45.fx2j.parser.element.AssignableElement;
 import io.github.sheikah45.fx2j.parser.element.ClassInstanceElement;
 import io.github.sheikah45.fx2j.parser.element.ConstantElement;
 import io.github.sheikah45.fx2j.parser.element.CopyElement;
 import io.github.sheikah45.fx2j.parser.element.DeclarationElement;
 import io.github.sheikah45.fx2j.parser.element.DefineElement;
+import io.github.sheikah45.fx2j.parser.element.ElementContent;
 import io.github.sheikah45.fx2j.parser.element.FactoryElement;
 import io.github.sheikah45.fx2j.parser.element.FxmlElement;
 import io.github.sheikah45.fx2j.parser.element.IncludeElement;
@@ -24,7 +27,6 @@ import io.github.sheikah45.fx2j.parser.element.ScriptElement;
 import io.github.sheikah45.fx2j.parser.element.ScriptSource;
 import io.github.sheikah45.fx2j.parser.element.StaticPropertyElement;
 import io.github.sheikah45.fx2j.parser.element.ValueElement;
-import io.github.sheikah45.fx2j.parser.property.Concrete;
 import io.github.sheikah45.fx2j.parser.property.Expression;
 import io.github.sheikah45.fx2j.parser.property.Handler;
 import io.github.sheikah45.fx2j.parser.property.Value;
@@ -69,14 +71,15 @@ public class FxmlParser {
         }
     }
 
-    private static ClassInstanceElement.Content createContent(Element element) {
-        List<FxmlAttribute> attributes = createAttributes(element);
-        List<FxmlElement> children = createChildren(element);
-        return new ClassInstanceElement.Content(attributes, children, retrieveInnerValue(element));
+    private static ElementContent<?, ?> createContent(Element element) {
+        List<FxmlAttribute> fxmlAttributes = createFxmlAttributes(element);
+        List<FxmlElement> fxmlElements = createFxmlElements(element);
+        return new ElementContent<>(fxmlAttributes, fxmlElements, retrieveInnerValue(element));
     }
 
-    private static Value.Single retrieveInnerValue(Element element) {
-        return createPropertyValue(retrieveInnerText(element));
+    private static Value retrieveInnerValue(Element element) {
+        String innerText = retrieveInnerText(element);
+        return innerText.isBlank() ? new Value.Empty() : createPropertyValue(innerText);
     }
 
     private static String retrieveInnerText(Element element) {
@@ -96,39 +99,7 @@ public class FxmlParser {
                         .orElse("");
     }
 
-    private static Value createPropertyValue(Element element) {
-        List<Value.Single> values = new ArrayList<>();
-
-        createAttributes(element).stream().map(attribute -> {
-            if (!(attribute instanceof FxmlAttribute.CommonAttribute commonAttribute)) {
-                throw new ParseException("property attribute contains a non common attribute");
-            }
-
-            return commonAttribute;
-        }).map(Concrete.Attribute::new).forEach(values::add);
-
-        createChildren(element)
-                .stream()
-                .map(Concrete.Element::new)
-                .forEach(values::add);
-
-        Value.Single innerValue = retrieveInnerValue(element);
-        if (!(innerValue instanceof Concrete.Empty)) {
-            values.add(innerValue);
-        }
-
-        if (values.isEmpty()) {
-            return new Concrete.Empty();
-        }
-
-        if (values.size() == 1) {
-            return values.getFirst();
-        }
-
-        return new Value.Multi(values);
-    }
-
-    private static List<FxmlAttribute> createAttributes(Element element) {
+    private static List<FxmlAttribute> createFxmlAttributes(Element element) {
         NamedNodeMap attributesNodeMap = element.getAttributes();
         int attrLength = attributesNodeMap.getLength();
         return IntStream.range(0, attrLength)
@@ -139,7 +110,7 @@ public class FxmlParser {
                         .toList();
     }
 
-    private static List<FxmlElement> createChildren(Element element) {
+    private static List<FxmlElement> createFxmlElements(Element element) {
         NodeList childNodes = element.getChildNodes();
         int childrenLength = childNodes.getLength();
 
@@ -162,12 +133,44 @@ public class FxmlParser {
             case String tag -> {
                 int separatorIndex = tag.lastIndexOf(".");
                 if (Character.isLowerCase(tag.charAt(separatorIndex + 1))) {
+                    ElementContent<?, ?> content = createContent(element);
+                    List<AssignableElement> assignableElements = content.elements().stream().map(fxmlElement -> {
+                        if (!(fxmlElement instanceof AssignableElement assignable)) {
+                            throw new ParseException(
+                                    "A property element cannot contain unassignable values");
+                        }
+
+                        return assignable;
+                    }).toList();
+                    List<AssignableAttribute> assignableAttributes = content.attributes()
+                                                                            .stream()
+                                                                            .map(fxmlAttribute -> {
+                                                                                if (!(fxmlAttribute instanceof AssignableAttribute assignable)) {
+                                                                                    throw new ParseException(
+                                                                                            "A property attribute cannot contain unassignable values");
+                                                                                }
+
+                                                                                return assignable;
+                                                                            })
+                                                                            .toList();
+
                     if (separatorIndex == -1) {
-                        yield new InstancePropertyElement(tag, createPropertyValue(element));
+                        yield new InstancePropertyElement(tag,
+                                                          new ElementContent<>(assignableAttributes, assignableElements,
+                                                                               content.value()));
                     } else {
+                        if (!content.attributes().isEmpty()) {
+                            throw new ParseException("static property elements cannot have attributes");
+                        }
+
+                        if (!content.elements().isEmpty()) {
+                            throw new ParseException("static property elements cannot have elements");
+                        }
+
                         yield new StaticPropertyElement(tag.substring(0, separatorIndex),
                                                         tag.substring(separatorIndex + 1),
-                                                        createPropertyValue(element));
+                                                        new ElementContent<>(assignableAttributes, assignableElements,
+                                                                             content.value()));
                     }
                 } else {
                     yield createInstanceElement(element);
@@ -185,14 +188,14 @@ public class FxmlParser {
             throw new ParseException("Multiple initialization attributes specified: %s".formatted(element));
         }
 
-        ClassInstanceElement.Content content = createContent(element);
+        ElementContent<?, ?> content = createContent(element);
 
         if (factory != null) {
             return new FactoryElement(className, factory, content);
         }
 
         if (value != null) {
-            return new ValueElement(className, createPropertyValue(value), content);
+            return new ValueElement(className, value, content);
         }
 
         if (constant != null) {
@@ -208,22 +211,50 @@ public class FxmlParser {
     }
 
     private static DefineElement createDefineElement(Element element) {
-        List<ClassInstanceElement> children = createChildren(element).stream().map(child -> {
-            if (!(child instanceof ClassInstanceElement classInstanceElement)) {
-                throw new ParseException("define element contains a non class instance element");
+        ElementContent<?, ?> content = createContent(element);
+
+        if (!content.attributes().isEmpty()) {
+            throw new ParseException("fx:define element cannot have attributes");
+        }
+
+        if (!(content.value() instanceof Value.Empty)) {
+            throw new ParseException("fx:define element cannot have an inner value");
+        }
+
+        List<ClassInstanceElement> instanceElements = content.elements().stream().map(fxmlElement -> {
+            if (!(fxmlElement instanceof ClassInstanceElement classInstanceElement)) {
+                throw new ParseException("fx:define element contains a non class instance element");
             }
 
             return classInstanceElement;
         }).toList();
 
-        return new DefineElement(children);
+        return new DefineElement(instanceElements);
     }
 
     private static ScriptElement createScriptElement(Element element) {
-        return removeAndGetValueIfPresent(element, "source").map(Path::of).map(source -> {
-            Optional<String> charset = removeAndGetValueIfPresent(element, "charset");
-            return new ScriptElement(new ScriptSource.Reference(source, charset.map(Charset::forName).orElse(null)));
-        }).orElseGet(() -> new ScriptElement(new ScriptSource.Inline(retrieveInnerText(element))));
+        Path source = removeAndGetValueIfPresent(element, "source").map(Path::of).orElse(null);
+        Charset charset = removeAndGetValueIfPresent(element, "charset").map(Charset::forName)
+                                                                        .orElse(StandardCharsets.UTF_8);
+        ElementContent<?, ?> content = createContent(element);
+
+        ScriptSource scriptSource;
+        if (source == null) {
+            if (!content.elements().isEmpty() || !content.attributes().isEmpty()) {
+                throw new ParseException(
+                        "fx:script with inline source cannot have any elements or attributes other than charset");
+            }
+            scriptSource = new ScriptSource.Inline(retrieveInnerText(element), charset);
+        } else {
+            if (!content.attributes().isEmpty() ||
+                !content.elements().isEmpty() || !(content.value() instanceof Value.Empty)) {
+                throw new ParseException(
+                        "fx:script with reference source cannot have any elements, attributes other than charset and source, or an inner value");
+            }
+            scriptSource = new ScriptSource.Reference(source, charset);
+        }
+
+        return new ScriptElement(scriptSource);
     }
 
     private static CopyElement createCopyElement(Element element) {
@@ -274,16 +305,15 @@ public class FxmlParser {
         };
     }
 
-    private static Value.Single createPropertyValue(String value) {
+    private static Value createPropertyValue(String value) {
         return switch (value) {
-            case String val when val.startsWith("@") -> new Concrete.Location(Path.of(val.substring(1)));
-            case String val when val.startsWith("%") -> new Concrete.Resource(val.substring(1));
+            case String val when val.startsWith("@") -> new Value.Location(Path.of(val.substring(1)));
+            case String val when val.startsWith("%") -> new Value.Resource(val.substring(1));
             case String val when val.startsWith("${") && val.endsWith("}") ->
                     Expression.parse(val.substring(2, val.length() - 1));
-            case String val when val.startsWith("$") -> new Concrete.Reference(val.substring(1));
-            case String val when val.startsWith("\\") -> new Concrete.Literal(val.substring(1));
-            case String val when val.isBlank() -> new Concrete.Empty();
-            case String val -> new Concrete.Literal(val);
+            case String val when val.startsWith("$") -> new Value.Reference(val.substring(1));
+            case String val when val.startsWith("\\") -> new Value.Literal(val.substring(1));
+            case String val -> new Value.Literal(val);
         };
     }
 

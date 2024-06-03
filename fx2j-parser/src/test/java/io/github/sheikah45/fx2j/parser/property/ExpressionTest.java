@@ -24,8 +24,8 @@ class ExpressionTest {
 
     @Test
     void testStringLiteral() {
-        assertEquals(new Expression.Str("\"true\""), Expression.parse("'\"true\"'"));
-        assertEquals(new Expression.Str("'false'"), Expression.parse("\"'false'\""));
+        assertEquals(new Expression.String("\"true\""), Expression.parse("'\"true\"'"));
+        assertEquals(new Expression.String("'false'"), Expression.parse("\"'false'\""));
     }
 
     @Test
