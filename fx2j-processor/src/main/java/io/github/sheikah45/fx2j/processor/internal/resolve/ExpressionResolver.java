@@ -28,33 +28,14 @@ public class ExpressionResolver {
     public ExpressionResult resolveExpression(Expression value) {
         return switch (value) {
             case Expression.Null() -> new ExpressionResult(Object.class, "null", List.of());
-            case Expression.Whole(long val) -> {
-                String identifier = nameResolver.resolveUniqueName(long.class);
-                yield new ExpressionResult(long.class, identifier,
-                                           List.of(new CodeValue.Assignment(long.class, identifier,
-                                                                            new CodeValue.Literal(
-                                                                                    String.valueOf(val)))));
-            }
-            case Expression.Fraction(double val) -> {
-                String identifier = nameResolver.resolveUniqueName(double.class);
-                yield new ExpressionResult(double.class, identifier,
-                                           List.of(new CodeValue.Assignment(double.class, identifier,
-                                                                            new CodeValue.Literal(
-                                                                                    String.valueOf(val)))));
-            }
-            case Expression.Boolean(boolean val) -> {
-                String identifier = nameResolver.resolveUniqueName(boolean.class);
-                yield new ExpressionResult(boolean.class, identifier,
-                                           List.of(new CodeValue.Assignment(boolean.class, identifier,
-                                                                            new CodeValue.Literal(
-                                                                                    String.valueOf(val)))));
-            }
-            case Expression.Str(String val) -> {
-                String identifier = nameResolver.resolveUniqueName(String.class);
-                yield new ExpressionResult(String.class, identifier,
-                                           List.of(new CodeValue.Assignment(String.class, identifier,
-                                                                            new CodeValue.String(val))));
-            }
+            case Expression.Whole(long val) when val > Integer.MAX_VALUE || val < Integer.MIN_VALUE ->
+                    new ExpressionResult(long.class, String.valueOf(val), List.of());
+            case Expression.Whole(long val) -> new ExpressionResult(int.class, String.valueOf(val), List.of());
+            case Expression.Fraction(double val) when val > Float.MAX_VALUE || val < Float.MIN_VALUE ->
+                    new ExpressionResult(double.class, String.valueOf(val), List.of());
+            case Expression.Fraction(double val) -> new ExpressionResult(float.class, String.valueOf(val), List.of());
+            case Expression.Boolean(boolean val) -> new ExpressionResult(boolean.class, String.valueOf(val), List.of());
+            case Expression.String(String val) -> new ExpressionResult(String.class, "\"" + val + "\"", List.of());
             case Expression.Variable(String name) ->
                     new ExpressionResult(nameResolver.resolveTypeById(name), name, List.of());
             case Expression.PropertyRead(Expression expression, String property) -> {
@@ -69,7 +50,7 @@ public class ExpressionResolver {
                 String identifier = nameResolver.resolveUniqueName(valueType);
 
                 initializers.add(new CodeValue.Assignment(valueType, identifier, new CodeValue.MethodCall(
-                        new CodeValue.Literal(expressionResult.identifier()), readProperty.getName(), List.of())));
+                        new CodeValue.Literal(expressionResult.value()), readProperty.getName(), List.of())));
                 yield new ExpressionResult(valueType, identifier, initializers);
             }
             case Expression.MethodCall(
@@ -82,7 +63,7 @@ public class ExpressionResolver {
                 for (Expression arg : args) {
                     ExpressionResult argResult = resolveExpression(arg);
                     parameterTypes.add(argResult.type());
-                    methodArgs.add(new CodeValue.Literal(argResult.identifier()));
+                    methodArgs.add(new CodeValue.Literal(argResult.value()));
                     initializers.addAll(argResult.initializers());
                 }
 
@@ -95,7 +76,7 @@ public class ExpressionResolver {
                 String identifier = nameResolver.resolveUniqueName(valueType);
 
                 initializers.add(new CodeValue.Assignment(valueType, identifier, new CodeValue.MethodCall(
-                        new CodeValue.Literal(expressionResult.identifier()), method.getName(), methodArgs)));
+                        new CodeValue.Literal(expressionResult.value()), method.getName(), methodArgs)));
                 yield new ExpressionResult(valueType, identifier, initializers);
             }
             case Expression.CollectionAccess(Expression expression, Expression key) -> {
@@ -112,9 +93,9 @@ public class ExpressionResolver {
                 Type valueType = valueAtMethod.getGenericReturnType();
                 String identifier = nameResolver.resolveUniqueName(valueType);
                 initializers.add(new CodeValue.Assignment(valueType, identifier, new CodeValue.MethodCall(
-                        new CodeValue.Literal(expressionResult.identifier()), valueAtMethod.getName(),
-                        List.of(new CodeValue.Literal(expressionResult.identifier()),
-                                new CodeValue.Literal(keyResult.identifier())))));
+                        new CodeValue.Type(bindingsClass), valueAtMethod.getName(),
+                        List.of(new CodeValue.Literal(expressionResult.value()),
+                                new CodeValue.Literal(keyResult.value())))));
                 yield new ExpressionResult(valueType, identifier, initializers);
             }
             case Expression.Add(Expression left, Expression right) ->
@@ -128,15 +109,15 @@ public class ExpressionResolver {
             case Expression.GreaterThan(Expression left, Expression right) ->
                     computeExpressionWithMethod(left, right, "greaterThan");
             case Expression.GreaterThanEqual(Expression left, Expression right) ->
-                    computeExpressionWithMethod(left, right, "greaterThanEqual");
+                    computeExpressionWithMethod(left, right, "greaterThanOrEqualTo", "greaterThanOrEqual");
             case Expression.LessThan(Expression left, Expression right) ->
                     computeExpressionWithMethod(left, right, "lessThan");
             case Expression.LessThanEqual(Expression left, Expression right) ->
-                    computeExpressionWithMethod(left, right, "lessThanEqual");
+                    computeExpressionWithMethod(left, right, "lessThanOrEqualTo", "lessThanOrEqual");
             case Expression.Equal(Expression left, Expression right) ->
-                    computeExpressionWithMethod(left, right, "equal");
+                    computeExpressionWithMethod(left, right, "isEqualTo", "equal");
             case Expression.NotEqual(Expression left, Expression right) ->
-                    computeExpressionWithMethod(left, right, "notEqual");
+                    computeExpressionWithMethod(left, right, "isNotEqualTo", "notEqual");
             case Expression.And(Expression left, Expression right) -> computeExpressionWithMethod(left, right, "and");
             case Expression.Or(Expression left, Expression right) -> computeExpressionWithMethod(left, right, "or");
             case Expression.Invert(Expression expression) -> computeExpressionWithMethod(expression, "not");
@@ -163,8 +144,8 @@ public class ExpressionResolver {
             Type valueType = directMethod.getGenericReturnType();
             String identifier = nameResolver.resolveUniqueName(valueType);
             initializers.add(new CodeValue.Assignment(valueType, identifier, new CodeValue.MethodCall(
-                    new CodeValue.Literal(leftResult.identifier()), directMethod.getName(),
-                    List.of(new CodeValue.Literal(rightResult.identifier())))));
+                    new CodeValue.Literal(leftResult.value()), directMethod.getName(),
+                    List.of(new CodeValue.Literal(rightResult.value())))));
             return new ExpressionResult(valueType, identifier, initializers);
         }
 
@@ -183,9 +164,9 @@ public class ExpressionResolver {
                                                       new CodeValue.MethodCall(new CodeValue.Type(bindingsClass),
                                                                                indirectMethod.getName(),
                                                                                List.of(new CodeValue.Literal(
-                                                                                               leftResult.identifier()),
+                                                                                               leftResult.value()),
                                                                                        new CodeValue.Literal(
-                                                                                               rightResult.identifier())))));
+                                                                                               rightResult.value())))));
             return new ExpressionResult(valueType, identifier, initializers);
         }
 
@@ -202,7 +183,7 @@ public class ExpressionResolver {
             Type valueType = directMethod.getGenericReturnType();
             String identifier = nameResolver.resolveUniqueName(valueType);
             initializers.add(new CodeValue.Assignment(valueType, identifier,
-                                                      new CodeValue.MethodCall(new CodeValue.Literal(identifier),
+                                                      new CodeValue.MethodCall(new CodeValue.Literal(result.value()),
                                                                                directMethod.getName(), List.of())));
             return new ExpressionResult(valueType, identifier, initializers);
         }
@@ -212,9 +193,11 @@ public class ExpressionResolver {
         if (indirectMethod != null) {
             Type valueType = indirectMethod.getGenericReturnType();
             String identifier = nameResolver.resolveUniqueName(valueType);
-            initializers.add(new CodeValue.Assignment(valueType, identifier, new CodeValue.MethodCall(
-                    new CodeValue.Type(bindingsClass),
-                    indirectMethod.getName(), List.of(new CodeValue.Literal(identifier)))));
+            initializers.add(new CodeValue.Assignment(valueType, identifier,
+                                                      new CodeValue.MethodCall(new CodeValue.Type(bindingsClass),
+                                                                               indirectMethod.getName(),
+                                                                               List.of(new CodeValue.Literal(
+                                                                                       result.value())))));
             return new ExpressionResult(valueType, identifier, initializers);
         }
 

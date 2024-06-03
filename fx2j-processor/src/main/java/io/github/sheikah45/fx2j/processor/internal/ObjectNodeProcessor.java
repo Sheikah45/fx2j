@@ -402,7 +402,7 @@ public class ObjectNodeProcessor {
                       .map(CodeBlockUtils::convertToCodeBlock)
                       .forEach(objectInitializationBuilder::addStatement);
                 objectInitializationBuilder.addStatement("$L.$L().$L($L)", objectIdentifier, propertyMethod.getName(),
-                                                         bindMethod.getName(), result.identifier());
+                                                         bindMethod.getName(), result.value());
             }
             case Value val -> {
                 Method propertySetter = methodResolver.resolveSetter(objectType, propertyName).orElse(null);

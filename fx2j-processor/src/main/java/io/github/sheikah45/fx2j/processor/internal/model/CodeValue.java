@@ -5,6 +5,9 @@ import java.util.Objects;
 
 public sealed interface CodeValue {
 
+    sealed interface Statement extends CodeValue {}
+    sealed interface Expression extends CodeValue {}
+
     sealed interface ArrayInitialization extends CodeValue {
         record Declared(java.lang.reflect.Type componentType, List<CodeValue> values) implements ArrayInitialization {
             public Declared {
@@ -41,7 +44,13 @@ public sealed interface CodeValue {
             Objects.requireNonNull(value, "value cannot be null");
         }
     }
-    record MethodCall(CodeValue receiver, java.lang.String method, List<CodeValue> args) implements CodeValue {
+    record FieldAccess(CodeValue receiver, java.lang.String field) implements CodeValue {
+        public FieldAccess {
+            Objects.requireNonNull(receiver, "receiver cannot be null");
+            Objects.requireNonNull(field, "field cannot be null");
+        }
+    }
+    record MethodCall(CodeValue receiver, java.lang.String method, List<CodeValue> args) implements Expression {
         public MethodCall {
             Objects.requireNonNull(receiver, "receiver cannot be null");
             Objects.requireNonNull(method, "method cannot be null");
@@ -49,16 +58,10 @@ public sealed interface CodeValue {
             args = List.copyOf(args);
         }
     }
-    record FieldAccess(CodeValue receiver, java.lang.String field) implements CodeValue {
-        public FieldAccess {
-            Objects.requireNonNull(receiver, "receiver cannot be null");
-            Objects.requireNonNull(field, "field cannot be null");
-        }
-    }
-    record Assignment(java.lang.reflect.Type type, java.lang.String identifier, CodeValue value) implements CodeValue {
+    record Assignment(java.lang.reflect.Type type, java.lang.String identifier, CodeValue value) implements Statement {
         public Assignment {
             Objects.requireNonNull(type, "type cannot be null");
-            Objects.requireNonNull(identifier, "identifier cannot be null");
+            Objects.requireNonNull(identifier, "value cannot be null");
             Objects.requireNonNull(value, "value cannot be null");
         }
     }

@@ -242,8 +242,8 @@ public class MethodResolver {
 
     public boolean hasAllNamedArgs(Executable executable) {
         return Arrays.stream(executable.getParameters()).allMatch(parameter -> {
-            Class<Annotation> defaultPropertyClass = typeResolver.resolve(NAMED_ARG_CLASS);
-            return parameter.getAnnotation(defaultPropertyClass) != null;
+            Class<Annotation> namedArgClass = typeResolver.resolve(NAMED_ARG_CLASS);
+            return parameter.getAnnotation(namedArgClass) != null;
         });
     }
 
