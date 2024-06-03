@@ -374,4 +374,20 @@ class FxmlParserElementTest {
         DeclarationElement rootNode = fxmlComponents.rootNode();
         assertEquals(new FactoryElement("List", "of", NAME_SPACE_ONLY_CONTENT), rootNode);
     }
+
+    @Test
+    void testStaticPropertyChild() {
+        Path filePath = FXML_ROOT.resolve("static-property-child.fxml");
+        FxmlComponents fxmlComponents = FxmlParser.readFxml(filePath);
+
+        DeclarationElement rootNode = fxmlComponents.rootNode();
+
+        List<? extends FxmlElement> elements = rootNode.content().elements();
+        assertEquals(List.of(new StaticPropertyElement("GridPane", "margin", new ElementContent<>(List.of(),
+                                                                                                  List.of(new InstanceElement(
+                                                                                                          "Insets",
+                                                                                                          EMPTY_CONTENT)),
+                                                                                                  new Value.Empty()))),
+                     elements);
+    }
 }

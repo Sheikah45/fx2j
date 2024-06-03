@@ -9,6 +9,10 @@ import io.github.sheikah45.fx2j.parser.attribute.InstancePropertyAttribute;
 import io.github.sheikah45.fx2j.parser.attribute.NameSpaceAttribute;
 import io.github.sheikah45.fx2j.parser.attribute.StaticPropertyAttribute;
 import io.github.sheikah45.fx2j.parser.element.DeclarationElement;
+import io.github.sheikah45.fx2j.parser.element.ElementContent;
+import io.github.sheikah45.fx2j.parser.element.FxmlElement;
+import io.github.sheikah45.fx2j.parser.element.InstanceElement;
+import io.github.sheikah45.fx2j.parser.element.StaticPropertyElement;
 import io.github.sheikah45.fx2j.parser.property.Expression;
 import io.github.sheikah45.fx2j.parser.property.Handler;
 import io.github.sheikah45.fx2j.parser.property.Value;
@@ -21,6 +25,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 
 @Execution(ExecutionMode.CONCURRENT)

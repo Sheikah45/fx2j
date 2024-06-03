@@ -128,9 +128,4 @@ class FxmlParserInvalidElementTest {
         assertThrows(ParseException.class, () -> FxmlParser.readFxml(filePath));
     }
 
-    @Test
-    void testStaticPropertyChild() {
-        Path filePath = FXML_ROOT.resolve("static-property-child.fxml");
-        assertThrows(ParseException.class, () -> FxmlParser.readFxml(filePath));
-    }
 }
