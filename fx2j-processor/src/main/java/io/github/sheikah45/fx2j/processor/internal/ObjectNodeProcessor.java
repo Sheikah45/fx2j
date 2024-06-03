@@ -541,10 +541,13 @@ public class ObjectNodeProcessor {
                                                                                    valueCode -> objectInitializationBuilder.addStatement(
                                                                                            "$L.add($L)",
                                                                                            collectionCodeBlock,
-                                                                                           valueCode));
+                                                                                           CodeBlockUtils.convertToCodeBlock(
+                                                                                                   valueCode)));
             case Value val -> objectInitializationBuilder.addStatement("$L.add($L)", collectionCodeBlock,
-                                                                       valueResolver.resolveCodeValue(contentTypeBound,
-                                                                                                      val));
+                                                                       CodeBlockUtils.convertToCodeBlock(
+                                                                               valueResolver.resolveCodeValue(
+                                                                                       contentTypeBound,
+                                                                                       val)));
         }
     }
 
@@ -607,9 +610,29 @@ public class ObjectNodeProcessor {
         FxmlProperty.Instance property = instanceProperties.get(paramName);
         return switch (property) {
             case InstancePropertyElement(String ignored, ElementContent<?, ?> content) -> {
-                if (!content.attributes().isEmpty() || !content.elements().isEmpty()) {
+                if (!content.attributes().isEmpty()) {
                     throw new UnsupportedOperationException(
                             "Cannot resolve property value from content with attributes");
+                }
+
+                if ((!content.elements().isEmpty() && !(content.value() instanceof Value.Empty)) ||
+                    content.elements().size() > 1) {
+                    throw new UnsupportedOperationException("Cannot handle multiple values for parameter element");
+                }
+
+                if (content.elements().size() == 1) {
+                    if (!(content.elements().getFirst() instanceof ClassInstanceElement classInstanceElement)) {
+                        throw new UnsupportedOperationException(
+                                "Cannot handle static property element value that is not a class instance");
+                    }
+
+                    ObjectNodeCode parameterNodeCode = buildChildNode(classInstanceElement);
+                    if (!typeResolver.isAssignableFrom(paramType, parameterNodeCode.nodeClass())) {
+                        throw new IllegalArgumentException(
+                                "Unable to assign type %s from %s".formatted(paramType, parameterNodeCode.nodeClass()));
+                    }
+
+                    yield CodeBlock.of("$L", parameterNodeCode.nodeIdentifier());
                 }
 
                 CodeValue value = valueResolver.resolveCodeValue(paramType, content.value());

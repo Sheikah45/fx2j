@@ -163,10 +163,6 @@ public class FxmlParser {
                             throw new ParseException("static property elements cannot have attributes");
                         }
 
-                        if (!content.elements().isEmpty()) {
-                            throw new ParseException("static property elements cannot have elements");
-                        }
-
                         yield new StaticPropertyElement(tag.substring(0, separatorIndex),
                                                         tag.substring(separatorIndex + 1),
                                                         new ElementContent<>(assignableAttributes, assignableElements,

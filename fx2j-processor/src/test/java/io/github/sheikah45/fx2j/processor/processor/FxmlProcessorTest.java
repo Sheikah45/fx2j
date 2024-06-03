@@ -5,8 +5,12 @@ import io.github.sheikah45.fx2j.processor.FxmlProcessor;
 import io.github.sheikah45.fx2j.processor.testutils.CopyObject;
 import javafx.collections.ObservableList;
 import javafx.geometry.HPos;
+import javafx.geometry.Insets;
 import javafx.geometry.VPos;
 import javafx.scene.Node;
+import javafx.scene.chart.BarChart;
+import javafx.scene.chart.CategoryAxis;
+import javafx.scene.chart.NumberAxis;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.SpinnerValueFactory;
@@ -16,6 +20,7 @@ import javafx.scene.control.TableView;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 import org.junit.jupiter.api.Test;
 
@@ -335,6 +340,39 @@ class FxmlProcessorTest extends AbstractProcessorTest {
         button.setPrefWidth(10);
         button.setPrefHeight(2);
         assertEquals(12, button.getMinWidth());
+    }
+
+    @Test
+    void testRequiredArgs() throws Exception {
+        FxmlProcessor mainBuilderJavaFile = new FxmlProcessor(PROCESS_FXML.resolve("required-args.fxml"),
+                                                              RESOURCES_ROOT,
+                                                              ROOT_PACKAGE, classLoader
+        );
+        Fx2jBuilder<Object, BarChart<?, ?>> fx2jBuilder = compileAndLoadBuilder(mainBuilderJavaFile);
+        fx2jBuilder.build(null, null, new PropertyResourceBundle(
+                Objects.requireNonNull(FxmlProcessorTest.class.getResource("/message.properties")).openStream()), null);
+        BarChart<?, ?> root = fx2jBuilder.getRoot();
+        assertInstanceOf(CategoryAxis.class, root.getXAxis());
+        assertInstanceOf(NumberAxis.class, root.getYAxis());
+    }
+
+    @Test
+    void testStaticPropertyElementValue() throws Exception {
+        FxmlProcessor mainBuilderJavaFile = new FxmlProcessor(PROCESS_FXML.resolve("static-property-child.fxml"),
+                                                              RESOURCES_ROOT,
+                                                              ROOT_PACKAGE, classLoader
+        );
+        Fx2jBuilder<Object, GridPane> fx2jBuilder = compileAndLoadBuilder(mainBuilderJavaFile);
+        fx2jBuilder.build(null, null, new PropertyResourceBundle(
+                Objects.requireNonNull(FxmlProcessorTest.class.getResource("/message.properties")).openStream()), null);
+        GridPane root = fx2jBuilder.getRoot();
+        Node child = root.getChildren().getFirst();
+        assertInstanceOf(VBox.class, child);
+        Insets margin = GridPane.getMargin(child);
+        assertEquals(5, margin.getTop());
+        assertEquals(0, margin.getRight());
+        assertEquals(0, margin.getLeft());
+        assertEquals(0, margin.getBottom());
     }
 
 }

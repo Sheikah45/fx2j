@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.chart.BarChart?>
+<?import javafx.scene.chart.CategoryAxis?>
+<?import javafx.scene.chart.NumberAxis?>
+<BarChart xmlns="http://javafx.com/javafx">
+    <xAxis>
+        <CategoryAxis/>
+    </xAxis>
+    <yAxis>
+        <NumberAxis/>
+    </yAxis>
+</BarChart>
