@@ -3,7 +3,9 @@ package io.github.sheikah45.fx2j.processor.internal.resolve;
 import io.github.sheikah45.fx2j.parser.property.Expression;
 import io.github.sheikah45.fx2j.parser.property.Value;
 import io.github.sheikah45.fx2j.processor.FxmlProcessor;
-import io.github.sheikah45.fx2j.processor.internal.model.CodeValue;
+import io.github.sheikah45.fx2j.processor.internal.code.CodeTypes;
+import io.github.sheikah45.fx2j.processor.internal.code.CodeValue;
+import io.github.sheikah45.fx2j.processor.internal.code.CodeValues;
 import io.github.sheikah45.fx2j.processor.internal.model.NamedArgValue;
 import javafx.geometry.VPos;
 import javafx.util.Duration;
@@ -30,20 +32,20 @@ class ValueResolverTest extends AbstractResolverTest {
     @ParameterizedTest
     @ArgumentsSource(DefaultValueProvider.class)
     void testCoerceDefaultValueBlankPrimitive(Class<?> clazz, Object value) {
-        assertEquals(new CodeValue.Literal(value.toString()),
+        assertEquals(CodeValues.of(value),
                      valueResolver.coerceDefaultValue(new NamedArgValue(clazz, "", "")));
     }
 
     @ParameterizedTest
     @ArgumentsSource(DefaultValueProvider.class)
     void testCoerceDefaultValueBlankBoxed(Class<?> clazz) {
-        assertEquals(new CodeValue.Null(), valueResolver.coerceDefaultValue(
+        assertEquals(CodeValues.nullValue(), valueResolver.coerceDefaultValue(
                 new NamedArgValue(resolverContainer.getTypeResolver().wrapType(clazz), "", "")));
     }
 
     @Test
     void testCoerceDefaultValueNotBlank() {
-        assertEquals(new CodeValue.String("hello"),
+        assertEquals(CodeValues.literal("hello"),
                      valueResolver.coerceDefaultValue(new NamedArgValue(String.class, "", "hello")));
     }
 
@@ -55,60 +57,60 @@ class ValueResolverTest extends AbstractResolverTest {
 
     @Test
     void testCoerceObject() {
-        assertEquals(new CodeValue.String("hello"), valueResolver.resolveCodeValue(Object.class, "hello"));
+        assertEquals(CodeValues.literal("hello"), valueResolver.resolveCodeValue(Object.class, "hello"));
     }
 
     @Test
     void testCoerceChar() {
-        assertEquals(new CodeValue.Char('a'), valueResolver.resolveCodeValue(char.class, "a"));
-        assertEquals(new CodeValue.Char('a'), valueResolver.resolveCodeValue(Character.class, "a"));
+        assertEquals(CodeValues.literal('a'), valueResolver.resolveCodeValue(char.class, "a"));
+        assertEquals(CodeValues.literal('a'), valueResolver.resolveCodeValue(Character.class, "a"));
         assertThrows(IllegalArgumentException.class, () -> valueResolver.resolveCodeValue(Character.class, "aa"));
         assertThrows(IllegalArgumentException.class, () -> valueResolver.resolveCodeValue(Character.class, ""));
     }
 
     @Test
     void testCoerceString() {
-        assertEquals(new CodeValue.String("hello"), valueResolver.resolveCodeValue(String.class, "hello"));
+        assertEquals(CodeValues.literal("hello"), valueResolver.resolveCodeValue(String.class, "hello"));
     }
 
     @Test
     void testCoerceArray() {
-        assertEquals(new CodeValue.ArrayInitialization.Declared(String.class, List.of(new CodeValue.String("hello"),
-                                                                                      new CodeValue.String("world"))),
+        assertEquals(new CodeValue.Array.Declared(CodeTypes.of(String.class), List.of(CodeValues.literal("hello"),
+                                                                                      CodeValues.literal("world"))),
                      valueResolver.resolveCodeValue(String[].class, "hello,world"));
     }
 
     @Test
     void testParseMethod() {
-        assertEquals(new CodeValue.Literal("100.0"), valueResolver.resolveCodeValue(double.class, "100"));
-        assertEquals(new CodeValue.Literal("100.0"), valueResolver.resolveCodeValue(Double.class, "100"));
+        assertEquals(CodeValues.literal(100d), valueResolver.resolveCodeValue(double.class, "100"));
+        assertEquals(CodeValues.literal(100d), valueResolver.resolveCodeValue(Double.class, "100"));
     }
 
     @Test
     void testValueOfMethod() {
-        assertEquals(new CodeValue.MethodCall(new CodeValue.Type(Duration.class), "valueOf",
-                                              List.of(new CodeValue.String("1s"))),
+        assertEquals(CodeValues.methodCall(Duration.class, "valueOf",
+                                           CodeValues.literal("1s")),
                      valueResolver.resolveCodeValue(Duration.class, "1s"));
         assertThrows(UnsupportedOperationException.class, () -> valueResolver.resolveCodeValue(Duration.class, ""));
     }
 
     @Test
     void testStringParsingMethods() throws Exception {
-        assertEquals(new CodeValue.Literal("100.0"),
+        assertEquals(CodeValues.literal(100d),
                      valueResolver.resolveCodeValue(Double.class.getMethod("parseDouble", String.class), "100"));
-        assertEquals(new CodeValue.FieldAccess(new CodeValue.Type(Double.class), "POSITIVE_INFINITY"),
+        assertEquals(CodeValues.fieldAccess(Double.class, "POSITIVE_INFINITY"),
                      valueResolver.resolveCodeValue(Double.class.getMethod("parseDouble", String.class), "Infinity"));
-        assertEquals(new CodeValue.FieldAccess(new CodeValue.Type(Double.class), "NEGATIVE_INFINITY"),
+        assertEquals(CodeValues.fieldAccess(Double.class, "NEGATIVE_INFINITY"),
                      valueResolver.resolveCodeValue(Double.class.getMethod("parseDouble", String.class), "-Infinity"));
-        assertEquals(new CodeValue.FieldAccess(new CodeValue.Type(Double.class), "NaN"),
+        assertEquals(CodeValues.fieldAccess(Double.class, "NaN"),
                      valueResolver.resolveCodeValue(Double.class.getMethod("parseDouble", String.class), "NaN"));
-        assertEquals(new CodeValue.FieldAccess(new CodeValue.Type(Float.class), "POSITIVE_INFINITY"),
+        assertEquals(CodeValues.fieldAccess(Float.class, "POSITIVE_INFINITY"),
                      valueResolver.resolveCodeValue(Float.class.getMethod("parseFloat", String.class), "Infinity"));
-        assertEquals(new CodeValue.FieldAccess(new CodeValue.Type(Float.class), "NEGATIVE_INFINITY"),
+        assertEquals(CodeValues.fieldAccess(Float.class, "NEGATIVE_INFINITY"),
                      valueResolver.resolveCodeValue(Float.class.getMethod("parseFloat", String.class), "-Infinity"));
-        assertEquals(new CodeValue.FieldAccess(new CodeValue.Type(Float.class), "NaN"),
+        assertEquals(CodeValues.fieldAccess(Float.class, "NaN"),
                      valueResolver.resolveCodeValue(Float.class.getMethod("parseFloat", String.class), "NaN"));
-        assertEquals(new CodeValue.Enum(VPos.BASELINE),
+        assertEquals(CodeValues.enumValue(VPos.BASELINE),
                      valueResolver.resolveCodeValue(VPos.class.getMethod("valueOf", String.class), "BASELINE"));
     }
 
@@ -139,7 +141,7 @@ class ValueResolverTest extends AbstractResolverTest {
 
     @Test
     void testResolveEmptyValue() {
-        assertEquals(new CodeValue.Null(), valueResolver.resolveCodeValue(Object.class, new Value.Empty()));
+        assertEquals(CodeValues.nullValue(), valueResolver.resolveCodeValue(Object.class, new Value.Empty()));
     }
 
     @Test
@@ -147,7 +149,7 @@ class ValueResolverTest extends AbstractResolverTest {
         resolverContainer.getNameResolver().storeIdType("a", Double.class);
         assertThrows(IllegalArgumentException.class,
                      () -> valueResolver.resolveCodeValue(Float.class, new Value.Reference("a")));
-        assertEquals(new CodeValue.Literal("a"),
+        assertEquals(CodeValues.variable("a"),
                      valueResolver.resolveCodeValue(Double.class, new Value.Reference("a")));
     }
 
@@ -155,14 +157,14 @@ class ValueResolverTest extends AbstractResolverTest {
     void testResolveResource() {
         assertThrows(UnsupportedOperationException.class,
                      () -> valueResolver.resolveCodeValue(Float.class, new Value.Resource("a")));
-        assertEquals(new CodeValue.MethodCall(new CodeValue.Literal(FxmlProcessor.RESOURCES_NAME), "getString",
-                                              List.of(new CodeValue.String("a"))),
+        assertEquals(CodeValues.methodCall(CodeValues.variable(FxmlProcessor.RESOURCES_NAME), "getString",
+                                           "a"),
                      valueResolver.resolveCodeValue(String.class, new Value.Resource("a")));
     }
 
     @Test
     void testResolveLiteral() {
-        assertEquals(new CodeValue.String("a"),
+        assertEquals(CodeValues.literal("a"),
                      valueResolver.resolveCodeValue(String.class, new Value.Literal("a")));
     }
 

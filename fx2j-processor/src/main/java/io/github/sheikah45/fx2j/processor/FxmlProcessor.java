@@ -1,6 +1,7 @@
 package io.github.sheikah45.fx2j.processor;
 
 import com.squareup.javapoet.ClassName;
+import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
@@ -18,6 +19,7 @@ import io.github.sheikah45.fx2j.processor.internal.model.ObjectNodeCode;
 import io.github.sheikah45.fx2j.processor.internal.resolve.MethodResolver;
 import io.github.sheikah45.fx2j.processor.internal.resolve.ResolverContainer;
 import io.github.sheikah45.fx2j.processor.internal.resolve.TypeResolver;
+import io.github.sheikah45.fx2j.processor.internal.utils.CodeBlockUtils;
 import io.github.sheikah45.fx2j.processor.internal.utils.JavaFileUtils;
 import io.github.sheikah45.fx2j.processor.internal.utils.StringUtils;
 
@@ -43,7 +45,6 @@ public class FxmlProcessor {
     public static final String BUILDER_PROVIDED_CONTROLLER_NAME = "builderProvidedController";
     public static final String BUILDER_PROVIDED_ROOT_NAME = "builderProvidedRoot";
 
-    private final ResolverContainer resolverContainer;
     private final TypeResolver typeResolver;
     private final MethodResolver methodResolver;
     private final String rootPackage;
@@ -73,7 +74,7 @@ public class FxmlProcessor {
                                             .map(FxmlProcessingInstruction.Import::value)
                                             .collect(Collectors.toSet());
 
-        resolverContainer = ResolverContainer.from(imports, classLoader);
+        ResolverContainer resolverContainer = ResolverContainer.from(imports, classLoader);
         typeResolver = resolverContainer.getTypeResolver();
         methodResolver = resolverContainer.getMethodResolver();
 
@@ -98,8 +99,8 @@ public class FxmlProcessor {
 
         Path absoluteResourceRootPath = resourceRootPath.toAbsolutePath();
         objectNodeCode = new ObjectNodeProcessor(fxmlComponents.rootNode(), controllerClass, resolverContainer,
-                                                 absoluteFilePath,
-                                                 absoluteResourceRootPath, this.rootPackage).getNodeCode();
+                                                 absoluteFilePath, absoluteResourceRootPath,
+                                                 this.rootPackage).getNodeCode();
         rootClass = typeResolver.wrapType(objectNodeCode.nodeClass());
 
         relativeFilePath = absoluteResourceRootPath.relativize(absoluteFilePath);
@@ -141,7 +142,8 @@ public class FxmlProcessor {
                                                           .addParameter(builderProvidedControllerParameter)
                                                           .addParameter(builderProvidedRootParameter)
                                                           .addParameter(resourcesParameter)
-                                                          .addParameter(controllerFactoryParameter);
+                                                          .addParameter(controllerFactoryParameter)
+                                                          .addAnnotation(Override.class);
 
         MethodSpec.Builder setControllerBuilder = MethodSpec.methodBuilder("setController")
                                                             .addModifiers(Modifier.PRIVATE)
@@ -169,9 +171,15 @@ public class FxmlProcessor {
         buildMethodBuilder.addStatement("$N($N, $N)", setControllerMethodSpec, builderProvidedControllerParameter,
                                         controllerFactoryParameter);
 
-        buildMethodBuilder.addCode(objectNodeCode.objectInitializationCode());
+        buildMethodBuilder.addCode("\n");
+
+        buildMethodBuilder.addCode(objectNodeCode.initializers()
+                                                 .stream()
+                                                 .map(CodeBlockUtils::convertStatementToCodeBlock)
+                                                 .collect(CodeBlock.joining("")));
 
         MethodSpec getControllerMethodSpec = MethodSpec.methodBuilder("getController")
+                                                       .addAnnotation(Override.class)
                                                        .returns(controllerClass)
                                                        .addModifiers(Modifier.PUBLIC)
                                                        .addStatement("return $N", controllerFieldSpec)
@@ -184,12 +192,16 @@ public class FxmlProcessor {
                                                  .build();
 
         MethodSpec getRootMethodSpec = MethodSpec.methodBuilder("getRoot")
+                                                 .addAnnotation(Override.class)
                                                  .returns(rootClass)
                                                  .addModifiers(Modifier.PUBLIC)
                                                  .addStatement("return $N", rootFieldSpec)
                                                  .build();
 
-        buildMethodBuilder.addStatement("$N($L)", setRootMethodSpec, objectNodeCode.nodeIdentifier());
+        buildMethodBuilder.addCode("\n");
+
+        buildMethodBuilder.addStatement("$N($L)", setRootMethodSpec,
+                                        CodeBlockUtils.convertExpressionToCodeBlock(objectNodeCode.nodeValue()));
 
 
         if (controllerClass != Object.class) {

@@ -1,10 +1,14 @@
 package io.github.sheikah45.fx2j.processor.internal.model;
 
-import com.squareup.javapoet.CodeBlock;
+import io.github.sheikah45.fx2j.processor.internal.code.CodeValue;
 
 import java.lang.reflect.Type;
+import java.util.List;
 
-public record ObjectNodeCode(String nodeIdentifier,
+public record ObjectNodeCode(CodeValue.Variable nodeValue,
                              Type nodeClass,
-                             CodeBlock objectInitializationCode) {
+                             List<CodeValue.Statement> initializers) {
+    public ObjectNodeCode {
+        initializers = List.copyOf(initializers);
+    }
 }
