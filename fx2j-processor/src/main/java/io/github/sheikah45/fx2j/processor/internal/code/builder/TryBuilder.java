@@ -1,9 +1,11 @@
 package io.github.sheikah45.fx2j.processor.internal.code.builder;
 
-import io.github.sheikah45.fx2j.processor.internal.code.CodeType;
-import io.github.sheikah45.fx2j.processor.internal.code.CodeTypes;
-import io.github.sheikah45.fx2j.processor.internal.code.CodeValue;
+import io.github.sheikah45.fx2j.processor.internal.code.Block;
+import io.github.sheikah45.fx2j.processor.internal.code.TypeValue;
+import io.github.sheikah45.fx2j.processor.internal.code.TypeValues;
 import io.github.sheikah45.fx2j.processor.internal.code.CodeValues;
+import io.github.sheikah45.fx2j.processor.internal.code.Expression;
+import io.github.sheikah45.fx2j.processor.internal.code.Resource;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -11,11 +13,11 @@ import java.util.function.Consumer;
 
 public final class TryBuilder {
 
-    private final List<CodeValue.Catch> catches = new ArrayList<>();
+    private final List<Block.Try.Catch> catches = new ArrayList<>();
 
-    private List<CodeValue.Resource> resources = List.of();
-    private CodeValue.Block body = CodeValues.block();
-    private CodeValue.Block finallyBlock = CodeValues.block();
+    private List<Resource> resources = List.of();
+    private Block.Simple body = CodeValues.block();
+    private Block.Simple finallyBlock = CodeValues.block();
 
     public TryBuilder() {}
 
@@ -47,12 +49,12 @@ public final class TryBuilder {
         return this;
     }
 
-    public CodeValue.Try build() {
-        return new CodeValue.Try(resources, body, catches, finallyBlock);
+    public Block.Try build() {
+        return new Block.Try(resources, body, catches, finallyBlock);
     }
 
     public static final class ResourcesBuilder {
-        private final List<CodeValue.Resource> resources = new ArrayList<>();
+        private final List<Resource> resources = new ArrayList<>();
 
         private ResourcesBuilder() {}
 
@@ -62,26 +64,26 @@ public final class TryBuilder {
         }
 
         public ResourcesBuilder resource(Class<? extends AutoCloseable> type, String identifier,
-                                         CodeValue.Expression initializer) {
-            resources.add(new CodeValue.ResourceDeclaration(CodeTypes.of(type), identifier, initializer));
+                                         Expression initializer) {
+            resources.add(new Resource.ResourceDeclaration(TypeValues.of(type), identifier, initializer));
             return this;
         }
 
-        public ResourcesBuilder resource(CodeValue.Resource resource) {
+        public ResourcesBuilder resource(Resource resource) {
             resources.add(resource);
             return this;
         }
 
-        private List<CodeValue.Resource> build() {
+        private List<Resource> build() {
             return List.copyOf(resources);
         }
     }
 
     public static final class CatchBuilder {
-        private final List<CodeType.Declarable> exceptionTypes = new ArrayList<>();
+        private final List<TypeValue.Declarable> exceptionTypes = new ArrayList<>();
 
         private String identifier = "exception";
-        private CodeValue.Block body = CodeValues.block();
+        private Block.Simple body = CodeValues.block();
 
         private CatchBuilder() {}
 
@@ -91,7 +93,7 @@ public final class TryBuilder {
         }
 
         public CatchBuilder exception(Class<? extends Throwable> exceptionType) {
-            exceptionTypes.add(CodeTypes.of(exceptionType));
+            exceptionTypes.add(TypeValues.of(exceptionType));
             return this;
         }
 
@@ -102,8 +104,8 @@ public final class TryBuilder {
             return this;
         }
 
-        private CodeValue.Catch build() {
-            return new CodeValue.Catch(identifier, exceptionTypes, body);
+        private Block.Try.Catch build() {
+            return new Block.Try.Catch(identifier, exceptionTypes, body);
         }
     }
 

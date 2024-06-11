@@ -1,8 +1,10 @@
 package io.github.sheikah45.fx2j.processor.internal.code.builder;
 
-import io.github.sheikah45.fx2j.processor.internal.code.CodeType;
-import io.github.sheikah45.fx2j.processor.internal.code.CodeValue;
+import io.github.sheikah45.fx2j.processor.internal.code.Block;
+import io.github.sheikah45.fx2j.processor.internal.code.TypeValue;
 import io.github.sheikah45.fx2j.processor.internal.code.CodeValues;
+import io.github.sheikah45.fx2j.processor.internal.code.Expression;
+import io.github.sheikah45.fx2j.processor.internal.code.Parameter;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -12,7 +14,7 @@ import java.util.function.Consumer;
 public final class LambdaBuilder {
 
     private LambdaParameterBuilder lambdaParameterBuilder;
-    private CodeValue.Block body = CodeValues.block();
+    private Block.Simple body = CodeValues.block();
 
     public LambdaBuilder typed(Consumer<LambdaParameterBuilder.Typed> consumer) {
         LambdaParameterBuilder.Typed parameterBuilder = new LambdaParameterBuilder.Typed();
@@ -35,35 +37,35 @@ public final class LambdaBuilder {
         return this;
     }
 
-    public CodeValue.Lambda.Arrow build() {
+    public Expression.Lambda.Arrow build() {
         return switch (lambdaParameterBuilder) {
-            case LambdaParameterBuilder.Typed builder -> new CodeValue.Lambda.Arrow.Typed(builder.build(), body);
-            case LambdaParameterBuilder.Untyped builder -> new CodeValue.Lambda.Arrow.Untyped(builder.build(), body);
-            case null -> new CodeValue.Lambda.Arrow.Untyped(List.of(), body);
+            case LambdaParameterBuilder.Typed builder -> new Expression.Lambda.Arrow.Typed(builder.build(), body);
+            case LambdaParameterBuilder.Untyped builder -> new Expression.Lambda.Arrow.Untyped(builder.build(), body);
+            case null -> new Expression.Lambda.Arrow.Untyped(List.of(), body);
         };
     }
 
     public sealed interface LambdaParameterBuilder {
 
         final class Typed implements LambdaParameterBuilder {
-            private final List<CodeValue.Parameter> parameters = new ArrayList<>();
+            private final List<Parameter> parameters = new ArrayList<>();
 
             public Typed parameter(Type type, String identifier) {
                 parameters.add(CodeValues.parameter(type, identifier));
                 return this;
             }
 
-            public Typed parameter(CodeType.Declarable type, String identifier) {
+            public Typed parameter(TypeValue.Declarable type, String identifier) {
                 parameters.add(CodeValues.parameter(type, identifier));
                 return this;
             }
 
-            public Typed parameter(CodeValue.Parameter parameter) {
+            public Typed parameter(Parameter parameter) {
                 parameters.add(parameter);
                 return this;
             }
 
-            private List<CodeValue.Parameter> build() {
+            private List<Parameter> build() {
                 return parameters;
             }
         }

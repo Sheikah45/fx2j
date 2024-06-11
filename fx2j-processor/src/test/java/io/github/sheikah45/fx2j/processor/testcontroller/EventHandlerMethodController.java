@@ -21,11 +21,11 @@ public class EventHandlerMethodController {
     public int throwsNoEventCount = 0;
     public int contextRequestCount = 0;
 
-    public void onActionWithEventThrow(ActionEvent event) throws IOException, FileNotFoundException {
+    public void onActionWithEventThrow(ActionEvent event) throws Exception {
         throwsEventCount++;
     }
 
-    public void onActionWithNoEventThrow() throws Exception {
+    public void onActionWithoutEventThrow() throws Exception {
         throwsNoEventCount++;
     }
 

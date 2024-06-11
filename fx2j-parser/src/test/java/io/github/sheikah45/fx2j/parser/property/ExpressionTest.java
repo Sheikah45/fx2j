@@ -13,120 +13,125 @@ class ExpressionTest {
 
     @Test
     void testNullLiteral() {
-        assertEquals(new Expression.Null(), Expression.parse("null"));
+        assertEquals(new BindExpression.Null(), BindExpression.parse("null"));
     }
 
     @Test
     void testBooleanLiteral() {
-        assertEquals(new Expression.Boolean(true), Expression.parse("true"));
-        assertEquals(new Expression.Boolean(false), Expression.parse("false"));
+        assertEquals(new BindExpression.Boolean(true), BindExpression.parse("true"));
+        assertEquals(new BindExpression.Boolean(false), BindExpression.parse("false"));
     }
 
     @Test
     void testStringLiteral() {
-        assertEquals(new Expression.String("\"true\""), Expression.parse("'\"true\"'"));
-        assertEquals(new Expression.String("'false'"), Expression.parse("\"'false'\""));
+        assertEquals(new BindExpression.String("\"true\""), BindExpression.parse("'\"true\"'"));
+        assertEquals(new BindExpression.String("'false'"), BindExpression.parse("\"'false'\""));
     }
 
     @Test
     void testWholeLiteral() {
-        assertEquals(new Expression.Whole(10), Expression.parse("10"));
+        assertEquals(new BindExpression.Whole(10), BindExpression.parse("10"));
     }
 
     @Test
     void testFractionalLiteral() {
-        assertEquals(new Expression.Fraction(10.0), Expression.parse("10.0"));
-        assertEquals(new Expression.Fraction(10.0), Expression.parse("1.0e1"));
-        assertEquals(new Expression.Fraction(10.0), Expression.parse("1e1"));
-        assertEquals(new Expression.Fraction(10.0), Expression.parse(".1e2"));
+        assertEquals(new BindExpression.Fraction(10.0), BindExpression.parse("10.0"));
+        assertEquals(new BindExpression.Fraction(10.0), BindExpression.parse("1.0e1"));
+        assertEquals(new BindExpression.Fraction(10.0), BindExpression.parse("1e1"));
+        assertEquals(new BindExpression.Fraction(10.0), BindExpression.parse(".1e2"));
     }
 
     @Test
     void testVariable() {
-        assertEquals(new Expression.Variable("test"), Expression.parse("test"));
+        assertEquals(new BindExpression.Variable("test"), BindExpression.parse("test"));
     }
 
     @Test
     void testEnclosed() {
-        assertEquals(new Expression.Whole(10), Expression.parse("(10)"));
+        assertEquals(new BindExpression.Whole(10), BindExpression.parse("(10)"));
     }
 
     @Test
     void testPropertyRead() {
-        assertEquals(new Expression.PropertyRead(new Expression.Variable("test"), "text"),
-                     Expression.parse("test.text"));
+        assertEquals(new BindExpression.PropertyRead(new BindExpression.Variable("test"), "text"),
+                     BindExpression.parse("test.text"));
     }
 
     @Test
     void testMethodCall() {
-        assertEquals(new Expression.MethodCall(new Expression.Variable("test"), "run",
-                                               List.of(new Expression.Variable("a"))), Expression.parse("test.run(a)"));
+        assertEquals(new BindExpression.MethodCall(new BindExpression.Variable("test"), "run",
+                                                   List.of(new BindExpression.Variable("a"))),
+                     BindExpression.parse("test.run(a)"));
     }
 
     @Test
     void testCollectionAccess() {
-        assertEquals(new Expression.CollectionAccess(new Expression.Variable("test"), new Expression.Whole(0)),
-                     Expression.parse("test[0]"));
+        assertEquals(
+                new BindExpression.CollectionAccess(new BindExpression.Variable("test"), new BindExpression.Whole(0)),
+                BindExpression.parse("test[0]"));
     }
 
     @Test
     void testNegate() {
-        assertEquals(new Expression.Negate(new Expression.Whole(10)), Expression.parse("-10"));
+        assertEquals(new BindExpression.Negate(new BindExpression.Whole(10)), BindExpression.parse("-10"));
     }
 
     @Test
     void testMultiplicative() {
-        assertEquals(new Expression.Multiply(new Expression.Whole(10), new Expression.Whole(10)),
-                     Expression.parse("10*10"));
-        assertEquals(new Expression.Divide(new Expression.Whole(10), new Expression.Whole(10)),
-                     Expression.parse("10/10"));
-        assertEquals(new Expression.Modulo(new Expression.Whole(10), new Expression.Whole(10)),
-                     Expression.parse("10%10"));
+        assertEquals(new BindExpression.Multiply(new BindExpression.Whole(10), new BindExpression.Whole(10)),
+                     BindExpression.parse("10*10"));
+        assertEquals(new BindExpression.Divide(new BindExpression.Whole(10), new BindExpression.Whole(10)),
+                     BindExpression.parse("10/10"));
+        assertEquals(new BindExpression.Modulo(new BindExpression.Whole(10), new BindExpression.Whole(10)),
+                     BindExpression.parse("10%10"));
     }
 
     @Test
     void testAdditive() {
-        assertEquals(new Expression.Add(new Expression.Whole(10), new Expression.Whole(10)), Expression.parse("10+10"));
-        assertEquals(new Expression.Subtract(new Expression.Whole(10), new Expression.Whole(10)),
-                     Expression.parse("10-10"));
+        assertEquals(new BindExpression.Add(new BindExpression.Whole(10), new BindExpression.Whole(10)),
+                     BindExpression.parse("10+10"));
+        assertEquals(new BindExpression.Subtract(new BindExpression.Whole(10), new BindExpression.Whole(10)),
+                     BindExpression.parse("10-10"));
     }
 
     @Test
     void testComparative() {
-        assertEquals(new Expression.GreaterThan(new Expression.Whole(10), new Expression.Whole(10)),
-                     Expression.parse("10>10"));
-        assertEquals(new Expression.GreaterThanEqual(new Expression.Whole(10), new Expression.Whole(10)),
-                     Expression.parse("10>=10"));
-        assertEquals(new Expression.LessThan(new Expression.Whole(10), new Expression.Whole(10)),
-                     Expression.parse("10<10"));
-        assertEquals(new Expression.LessThanEqual(new Expression.Whole(10), new Expression.Whole(10)),
-                     Expression.parse("10<=10"));
-        assertEquals(new Expression.Equal(new Expression.Whole(10), new Expression.Whole(10)),
-                     Expression.parse("10==10"));
-        assertEquals(new Expression.NotEqual(new Expression.Whole(10), new Expression.Whole(10)),
-                     Expression.parse("10!=10"));
+        assertEquals(new BindExpression.GreaterThan(new BindExpression.Whole(10), new BindExpression.Whole(10)),
+                     BindExpression.parse("10>10"));
+        assertEquals(new BindExpression.GreaterThanEqual(new BindExpression.Whole(10), new BindExpression.Whole(10)),
+                     BindExpression.parse("10>=10"));
+        assertEquals(new BindExpression.LessThan(new BindExpression.Whole(10), new BindExpression.Whole(10)),
+                     BindExpression.parse("10<10"));
+        assertEquals(new BindExpression.LessThanEqual(new BindExpression.Whole(10), new BindExpression.Whole(10)),
+                     BindExpression.parse("10<=10"));
+        assertEquals(new BindExpression.Equal(new BindExpression.Whole(10), new BindExpression.Whole(10)),
+                     BindExpression.parse("10==10"));
+        assertEquals(new BindExpression.NotEqual(new BindExpression.Whole(10), new BindExpression.Whole(10)),
+                     BindExpression.parse("10!=10"));
     }
 
     @Test
     void testInvert() {
-        assertEquals(new Expression.Invert(new Expression.Boolean(false)), Expression.parse("!false"));
+        assertEquals(new BindExpression.Invert(new BindExpression.Boolean(false)), BindExpression.parse("!false"));
     }
 
     @Test
     void testLogical() {
-        assertEquals(new Expression.And(new Expression.Boolean(true), new Expression.Boolean(true)),
-                     Expression.parse("true&&true"));
-        assertEquals(new Expression.Or(new Expression.Boolean(true), new Expression.Boolean(true)),
-                     Expression.parse("true||true"));
+        assertEquals(new BindExpression.And(new BindExpression.Boolean(true), new BindExpression.Boolean(true)),
+                     BindExpression.parse("true&&true"));
+        assertEquals(new BindExpression.Or(new BindExpression.Boolean(true), new BindExpression.Boolean(true)),
+                     BindExpression.parse("true||true"));
     }
 
     @Test
     void testOrderOfOperations() {
-        Expression.Whole whole10 = new Expression.Whole(10);
-        assertEquals(new Expression.And(new Expression.LessThan(
-                new Expression.Add(new Expression.Subtract(whole10, new Expression.Multiply(whole10, whole10)),
-                                   whole10),
-                new Expression.Variable("a")), new Expression.Boolean(true)), Expression.parse("10-10*10+10<a&&true"));
+        BindExpression.Whole whole10 = new BindExpression.Whole(10);
+        assertEquals(new BindExpression.And(new BindExpression.LessThan(
+                             new BindExpression.Add(
+                                     new BindExpression.Subtract(whole10, new BindExpression.Multiply(whole10, whole10)),
+                                     whole10),
+                             new BindExpression.Variable("a")), new BindExpression.Boolean(true)),
+                     BindExpression.parse("10-10*10+10<a&&true"));
     }
 
 }

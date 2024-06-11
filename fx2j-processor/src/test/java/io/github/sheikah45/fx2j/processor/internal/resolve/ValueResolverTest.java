@@ -1,11 +1,11 @@
 package io.github.sheikah45.fx2j.processor.internal.resolve;
 
-import io.github.sheikah45.fx2j.parser.property.Expression;
+import io.github.sheikah45.fx2j.parser.property.BindExpression;
 import io.github.sheikah45.fx2j.parser.property.Value;
 import io.github.sheikah45.fx2j.processor.FxmlProcessor;
-import io.github.sheikah45.fx2j.processor.internal.code.CodeTypes;
-import io.github.sheikah45.fx2j.processor.internal.code.CodeValue;
+import io.github.sheikah45.fx2j.processor.internal.code.TypeValues;
 import io.github.sheikah45.fx2j.processor.internal.code.CodeValues;
+import io.github.sheikah45.fx2j.processor.internal.code.Expression;
 import io.github.sheikah45.fx2j.processor.internal.model.NamedArgValue;
 import javafx.geometry.VPos;
 import javafx.util.Duration;
@@ -75,8 +75,8 @@ class ValueResolverTest extends AbstractResolverTest {
 
     @Test
     void testCoerceArray() {
-        assertEquals(new CodeValue.Array.Declared(CodeTypes.of(String.class), List.of(CodeValues.literal("hello"),
-                                                                                      CodeValues.literal("world"))),
+        assertEquals(new Expression.Array.Declared(TypeValues.of(String.class), List.of(CodeValues.literal("hello"),
+                                                                                        CodeValues.literal("world"))),
                      valueResolver.resolveCodeValue(String[].class, "hello,world"));
     }
 
@@ -171,7 +171,7 @@ class ValueResolverTest extends AbstractResolverTest {
     @Test
     void testResolveExpression() {
         assertThrows(UnsupportedOperationException.class,
-                     () -> valueResolver.resolveCodeValue(Float.class, new Expression.Null()));
+                     () -> valueResolver.resolveCodeValue(Float.class, new BindExpression.Null()));
     }
 
     @Test

@@ -10,6 +10,6 @@ dependencies {
 }
 
 javafx {
-    modules = mutableListOf("javafx.fxml", "javafx.controls", "javafx.graphics")
+    modules = listOf("javafx.fxml", "javafx.controls", "javafx.graphics")
     configuration = "testImplementation"
 }

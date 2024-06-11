@@ -9,5 +9,6 @@ public record IncludeElement(Path source, Path resources, Charset charset, Eleme
     public IncludeElement {
         Objects.requireNonNull(source, "source cannot be null");
         Objects.requireNonNull(content, "content cannot be null");
+        Objects.requireNonNull(charset, "charset cannot be null");
     }
 }

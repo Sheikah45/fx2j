@@ -1,10 +1,11 @@
 package io.github.sheikah45.fx2j.processor.internal.resolve;
 
-import io.github.sheikah45.fx2j.parser.property.Expression;
+import io.github.sheikah45.fx2j.parser.property.BindExpression;
 import io.github.sheikah45.fx2j.parser.property.Value;
 import io.github.sheikah45.fx2j.processor.FxmlProcessor;
-import io.github.sheikah45.fx2j.processor.internal.code.CodeValue;
 import io.github.sheikah45.fx2j.processor.internal.code.CodeValues;
+import io.github.sheikah45.fx2j.processor.internal.code.Expression;
+import io.github.sheikah45.fx2j.processor.internal.code.StatementExpression;
 import io.github.sheikah45.fx2j.processor.internal.model.NamedArgValue;
 
 import java.lang.reflect.InvocationTargetException;
@@ -31,7 +32,7 @@ public class ValueResolver {
         this.nameResolver = nameResolver;
     }
 
-    public CodeValue.Expression coerceDefaultValue(NamedArgValue namedArgValue) {
+    public Expression coerceDefaultValue(NamedArgValue namedArgValue) {
         String defaultValue = namedArgValue.defaultValue();
         if (defaultValue.isBlank()) {
             Object typeDefault = DEFAULTS_MAP.get(namedArgValue.parameterType());
@@ -44,7 +45,7 @@ public class ValueResolver {
         return resolveCodeValue(namedArgValue.parameterType(), defaultValue);
     }
 
-    public CodeValue.Expression resolveCodeValue(Type valueType, String value) {
+    public Expression resolveCodeValue(Type valueType, String value) {
         if (typeResolver.isAssignableFrom(char.class, valueType) ||
             typeResolver.isAssignableFrom(Character.class, valueType)) {
             if (value.length() != 1) {
@@ -63,7 +64,7 @@ public class ValueResolver {
             Object[] arrayValues = Arrays.stream(value.split(","))
                                          .map(componentString -> resolveCodeValue(componentType,
                                                                                   componentString))
-                                         .toArray(CodeValue.Expression[]::new);
+                                         .toArray(Expression[]::new);
             return CodeValues.array(componentType, arrayValues);
         }
 
@@ -93,7 +94,7 @@ public class ValueResolver {
         throw new UnsupportedOperationException("Cannot create type %s from %s".formatted(valueType, value));
     }
 
-    public CodeValue.Expression resolveCodeValue(Method staticMethod, String valueString)
+    public Expression resolveCodeValue(Method staticMethod, String valueString)
             throws IllegalAccessException, InvocationTargetException {
         if (!Modifier.isStatic(staticMethod.getModifiers())) {
             throw new IllegalArgumentException("Provided method is not static");
@@ -123,7 +124,7 @@ public class ValueResolver {
         };
     }
 
-    public CodeValue.Expression resolveCodeValue(Type valueType, Value value) {
+    public Expression resolveCodeValue(Type valueType, Value value) {
         return switch (value) {
             case Value.Empty() -> CodeValues.nullValue();
             case Value.Reference(String reference) -> {
@@ -135,14 +136,14 @@ public class ValueResolver {
                 yield CodeValues.variable(reference);
             }
             case Value.Resource(String resource) when valueType == String.class ->
-                    new CodeValue.MethodCall(CodeValues.variable(FxmlProcessor.RESOURCES_NAME), "getString",
-                                             List.of(CodeValues.literal(resource)));
+                    new StatementExpression.MethodCall(CodeValues.variable(FxmlProcessor.RESOURCES_NAME), "getString",
+                                                       List.of(CodeValues.literal(resource)));
             case Value.Literal(String val) -> resolveCodeValue(valueType, val);
             case Value.Location ignored ->
                     throw new UnsupportedOperationException("Location resolution not yet supported");
             case Value.Resource ignored -> throw new UnsupportedOperationException(
                     "Non string resource types not supported");
-            case Expression ignored ->
+            case BindExpression ignored ->
                     throw new UnsupportedOperationException("Cannot resolve an expression to a code value");
         };
     }

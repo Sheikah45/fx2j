@@ -107,10 +107,10 @@ class FxmlProcessorControllerTest extends AbstractProcessorTest {
         root.getStyleClass().add("test");
         assertEquals(controller.styleClasses, List.of("test"));
 
-        assertEquals(controller.psudeoStyleClasses, Set.of());
+        assertEquals(controller.pseudoClassStates, Set.of());
         PseudoClass pseudoClass = PseudoClass.getPseudoClass("test");
         root.pseudoClassStateChanged(pseudoClass, true);
-        assertEquals(controller.psudeoStyleClasses, Set.of(pseudoClass));
+        assertEquals(controller.pseudoClassStates, Set.of(pseudoClass));
 
         assertEquals(controller.properties, Map.of());
         root.getProperties().put("key", "value");

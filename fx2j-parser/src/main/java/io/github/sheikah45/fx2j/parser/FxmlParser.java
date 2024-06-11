@@ -27,7 +27,7 @@ import io.github.sheikah45.fx2j.parser.element.ScriptElement;
 import io.github.sheikah45.fx2j.parser.element.ScriptSource;
 import io.github.sheikah45.fx2j.parser.element.StaticPropertyElement;
 import io.github.sheikah45.fx2j.parser.element.ValueElement;
-import io.github.sheikah45.fx2j.parser.property.Expression;
+import io.github.sheikah45.fx2j.parser.property.BindExpression;
 import io.github.sheikah45.fx2j.parser.property.Handler;
 import io.github.sheikah45.fx2j.parser.property.Value;
 import io.github.sheikah45.fx2j.parser.utils.StringUtils;
@@ -55,6 +55,9 @@ import java.util.stream.Stream;
 
 public class FxmlParser {
 
+    private static final Value.Empty EMPTY_VALUE = new Value.Empty();
+    private static final ElementContent<?, ?> EMPTY_CONTENT = new ElementContent<>(List.of(), List.of(), EMPTY_VALUE);
+
     public static FxmlComponents readFxml(Path filePath) {
         DocumentBuilderFactory documentBuilderFactory = DocumentBuilderFactory.newDefaultInstance();
         try {
@@ -74,12 +77,17 @@ public class FxmlParser {
     private static ElementContent<?, ?> createContent(Element element) {
         List<FxmlAttribute> fxmlAttributes = createFxmlAttributes(element);
         List<FxmlElement> fxmlElements = createFxmlElements(element);
-        return new ElementContent<>(fxmlAttributes, fxmlElements, retrieveInnerValue(element));
+        Value innerValue = retrieveInnerValue(element);
+        if (fxmlAttributes.isEmpty() && fxmlElements.isEmpty() && innerValue instanceof Value.Empty) {
+            return EMPTY_CONTENT;
+        }
+
+        return new ElementContent<>(fxmlAttributes, fxmlElements, innerValue);
     }
 
     private static Value retrieveInnerValue(Element element) {
         String innerText = retrieveInnerText(element);
-        return innerText.isBlank() ? new Value.Empty() : createPropertyValue(innerText);
+        return innerText.isBlank() ? EMPTY_VALUE : createPropertyValue(innerText);
     }
 
     private static String retrieveInnerText(Element element) {
@@ -133,46 +141,50 @@ public class FxmlParser {
             case String tag -> {
                 int separatorIndex = tag.lastIndexOf(".");
                 if (Character.isLowerCase(tag.charAt(separatorIndex + 1))) {
-                    ElementContent<?, ?> content = createContent(element);
-                    List<AssignableElement> assignableElements = content.elements().stream().map(fxmlElement -> {
-                        if (!(fxmlElement instanceof AssignableElement assignable)) {
-                            throw new ParseException(
-                                    "A property element cannot contain unassignable values");
-                        }
-
-                        return assignable;
-                    }).toList();
-                    List<AssignableAttribute> assignableAttributes = content.attributes()
-                                                                            .stream()
-                                                                            .map(fxmlAttribute -> {
-                                                                                if (!(fxmlAttribute instanceof AssignableAttribute assignable)) {
-                                                                                    throw new ParseException(
-                                                                                            "A property attribute cannot contain unassignable values");
-                                                                                }
-
-                                                                                return assignable;
-                                                                            })
-                                                                            .toList();
+                    ElementContent<AssignableAttribute, AssignableElement> newContent = createAssignableContent(
+                            element);
 
                     if (separatorIndex == -1) {
-                        yield new InstancePropertyElement(tag,
-                                                          new ElementContent<>(assignableAttributes, assignableElements,
-                                                                               content.value()));
+                        yield new InstancePropertyElement(tag, newContent);
                     } else {
-                        if (!content.attributes().isEmpty()) {
+                        if (!newContent.attributes().isEmpty()) {
                             throw new ParseException("static property elements cannot have attributes");
                         }
 
                         yield new StaticPropertyElement(tag.substring(0, separatorIndex),
-                                                        tag.substring(separatorIndex + 1),
-                                                        new ElementContent<>(assignableAttributes, assignableElements,
-                                                                             content.value()));
+                                                        tag.substring(separatorIndex + 1), newContent);
                     }
                 } else {
                     yield createInstanceElement(element);
                 }
             }
         };
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ElementContent<AssignableAttribute, AssignableElement> createAssignableContent(Element element) {
+        ElementContent<?, ?> content = createContent(element);
+        if (EMPTY_CONTENT.equals(content)) {
+            return (ElementContent<AssignableAttribute, AssignableElement>) content;
+        }
+
+        List<AssignableElement> assignableElements = content.elements().stream().map(fxmlElement -> {
+            if (!(fxmlElement instanceof AssignableElement assignable)) {
+                throw new ParseException("A property element cannot contain unassignable values");
+            }
+
+            return assignable;
+        }).toList();
+
+        List<AssignableAttribute> assignableAttributes = content.attributes().stream().map(fxmlAttribute -> {
+            if (!(fxmlAttribute instanceof AssignableAttribute assignable)) {
+                throw new ParseException("A property attribute cannot contain unassignable values");
+            }
+
+            return assignable;
+        }).toList();
+
+        return new ElementContent<>(assignableAttributes, assignableElements, content.value());
     }
 
     private static ClassInstanceElement createInstanceElement(Element element) {
@@ -243,7 +255,8 @@ public class FxmlParser {
             scriptSource = new ScriptSource.Inline(retrieveInnerText(element), charset);
         } else {
             if (!content.attributes().isEmpty() ||
-                !content.elements().isEmpty() || !(content.value() instanceof Value.Empty)) {
+                !content.elements().isEmpty() ||
+                !(content.value() instanceof Value.Empty)) {
                 throw new ParseException(
                         "fx:script with reference source cannot have any elements, attributes other than charset and source, or an inner value");
             }
@@ -306,7 +319,7 @@ public class FxmlParser {
             case String val when val.startsWith("@") -> new Value.Location(Path.of(val.substring(1)));
             case String val when val.startsWith("%") -> new Value.Resource(val.substring(1));
             case String val when val.startsWith("${") && val.endsWith("}") ->
-                    Expression.parse(val.substring(2, val.length() - 1));
+                    BindExpression.parse(val.substring(2, val.length() - 1));
             case String val when val.startsWith("$") -> new Value.Reference(val.substring(1));
             case String val when val.startsWith("\\") -> new Value.Literal(val.substring(1));
             case String val -> new Value.Literal(val);

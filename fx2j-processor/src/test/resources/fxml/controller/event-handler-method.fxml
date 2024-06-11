@@ -7,6 +7,6 @@
         <Button onAction="#onActionWithoutEvent" fx:id="withoutEventButton"/>
         <Button onContextMenuRequested="#onContextMenuRequested" fx:id="contextButton"/>
         <Button onAction="#onActionWithEventThrow" fx:id="throwingEventButton"/>
-        <Button onAction="#onActionWithNoEventThrow" fx:id="throwingNoEventButton"/>
+        <Button onAction="#onActionWithoutEventThrow" fx:id="throwingNoEventButton"/>
     </children>
 </AnchorPane>

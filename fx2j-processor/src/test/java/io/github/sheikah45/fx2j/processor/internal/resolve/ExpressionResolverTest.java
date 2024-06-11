@@ -1,8 +1,8 @@
 package io.github.sheikah45.fx2j.processor.internal.resolve;
 
-import io.github.sheikah45.fx2j.parser.property.Expression;
-import io.github.sheikah45.fx2j.processor.internal.code.CodeValue;
+import io.github.sheikah45.fx2j.parser.property.BindExpression;
 import io.github.sheikah45.fx2j.processor.internal.code.CodeValues;
+import io.github.sheikah45.fx2j.processor.internal.code.Expression;
 import io.github.sheikah45.fx2j.processor.internal.model.ExpressionResult;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
@@ -32,105 +32,105 @@ class ExpressionResolverTest extends AbstractResolverTest {
     @Test
     void testResolveNull() {
         assertEquals(new ExpressionResult(Object.class, CodeValues.nullValue(), List.of()),
-                     expressionResolver.resolveExpression(new Expression.Null()));
+                     expressionResolver.resolveExpression(new BindExpression.Null()));
     }
 
     @Test
     void testResolveWhole() {
         int value = 1;
         assertEquals(new ExpressionResult(int.class, CodeValues.literal(value), List.of()),
-                     expressionResolver.resolveExpression(new Expression.Whole(value)));
+                     expressionResolver.resolveExpression(new BindExpression.Whole(value)));
     }
 
     @Test
     void testResolveWholeLarge() {
         long value = Integer.MAX_VALUE + 1L;
         assertEquals(new ExpressionResult(long.class, CodeValues.literal(value), List.of()),
-                     expressionResolver.resolveExpression(new Expression.Whole(value)));
+                     expressionResolver.resolveExpression(new BindExpression.Whole(value)));
     }
 
     @Test
     void testResolveWholeLargeNegative() {
         long value = Integer.MIN_VALUE - 1L;
         assertEquals(new ExpressionResult(long.class, CodeValues.literal(value), List.of()),
-                     expressionResolver.resolveExpression(new Expression.Whole(value)));
+                     expressionResolver.resolveExpression(new BindExpression.Whole(value)));
     }
 
     @Test
     void testResolveFraction() {
         assertEquals(new ExpressionResult(float.class, CodeValues.literal(1f), List.of()),
-                     expressionResolver.resolveExpression(new Expression.Fraction(1)));
+                     expressionResolver.resolveExpression(new BindExpression.Fraction(1)));
     }
 
     @Test
     void testResolveFractionLarge() {
         double value = Float.MAX_VALUE * 2d;
         assertEquals(new ExpressionResult(double.class, CodeValues.literal(value), List.of()),
-                     expressionResolver.resolveExpression(new Expression.Fraction(value)));
+                     expressionResolver.resolveExpression(new BindExpression.Fraction(value)));
     }
 
     @Test
     void testResolveFractionLargeNegative() {
         double value = -(Float.MAX_VALUE * 2d);
         assertEquals(new ExpressionResult(double.class, CodeValues.literal(value), List.of()),
-                     expressionResolver.resolveExpression(new Expression.Fraction(value)));
+                     expressionResolver.resolveExpression(new BindExpression.Fraction(value)));
     }
 
     @Test
     void testResolveBoolean() {
         assertEquals(new ExpressionResult(boolean.class, CodeValues.literal(true), List.of()),
-                     expressionResolver.resolveExpression(new Expression.Boolean(true)));
+                     expressionResolver.resolveExpression(new BindExpression.Boolean(true)));
     }
 
     @Test
     void testResolveString() {
         assertEquals(new ExpressionResult(String.class, CodeValues.literal("hello"), List.of()),
-                     expressionResolver.resolveExpression(new Expression.String("hello")));
+                     expressionResolver.resolveExpression(new BindExpression.String("hello")));
     }
 
     @Test
     void testResolveVariable() {
         resolverContainer.getNameResolver().storeIdType("a", Integer.class);
         assertEquals(new ExpressionResult(Integer.class, CodeValues.variable("a"), List.of()),
-                     expressionResolver.resolveExpression(new Expression.Variable("a")));
+                     expressionResolver.resolveExpression(new BindExpression.Variable("a")));
     }
 
     @Test
     void testResolvePropertyRead() {
         resolverContainer.getNameResolver().storeIdType("a", Label.class);
-        CodeValue.Variable stringProperty0 = CodeValues.variable("stringProperty0");
+        Expression.Variable stringProperty0 = CodeValues.variable("stringProperty0");
         assertEquals(new ExpressionResult(StringProperty.class, stringProperty0,
                                           List.of(CodeValues.declaration(StringProperty.class, stringProperty0,
                                                                          CodeValues.methodCall("a", "textProperty")))),
                      expressionResolver.resolveExpression(
-                             new Expression.PropertyRead(new Expression.Variable("a"), "text")));
+                             new BindExpression.PropertyRead(new BindExpression.Variable("a"), "text")));
     }
 
     @Test
     void testResolvePropertyReadUnknownProperty() {
         resolverContainer.getNameResolver().storeIdType("a", Label.class);
         assertThrows(IllegalArgumentException.class, () -> expressionResolver.resolveExpression(
-                new Expression.PropertyRead(new Expression.Variable("a"), "blank")));
+                new BindExpression.PropertyRead(new BindExpression.Variable("a"), "blank")));
     }
 
     @Test
     void testResolveMethodCall() {
         resolverContainer.getNameResolver().storeIdType("a", Label.class);
-        CodeValue.Variable variable = CodeValues.variable("node0");
+        Expression.Variable variable = CodeValues.variable("node0");
         assertEquals(new ExpressionResult(Node.class, variable, List.of(CodeValues.declaration(Node.class, variable,
                                                                                                CodeValues.methodCall(
                                                                                                        "a", "lookup",
                                                                                                        "parent")))),
                      expressionResolver.resolveExpression(
-                             new Expression.MethodCall(new Expression.Variable("a"), "lookup",
-                                                       List.of(new Expression.String("parent")))));
+                             new BindExpression.MethodCall(new BindExpression.Variable("a"), "lookup",
+                                                           List.of(new BindExpression.String("parent")))));
     }
 
     @Test
     void testResolveMethodCallUnknownProperty() {
         resolverContainer.getNameResolver().storeIdType("a", Label.class);
         assertThrows(IllegalArgumentException.class, () -> expressionResolver.resolveExpression(
-                new Expression.MethodCall(new Expression.Variable("a"), "getBlank", List.of())));
+                new BindExpression.MethodCall(new BindExpression.Variable("a"), "getBlank", List.of())));
     }
 
     @Test
@@ -140,7 +140,7 @@ class ExpressionResolverTest extends AbstractResolverTest {
                                           .orElseThrow();
         resolverContainer.getNameResolver().storeIdType("a", ObservableList.class);
         Type bindingType = valueAt.getGenericReturnType();
-        CodeValue.Variable variable = CodeValues.variable("objectBinding0");
+        Expression.Variable variable = CodeValues.variable("objectBinding0");
         assertEquals(new ExpressionResult(bindingType, variable, List.of(CodeValues.declaration(bindingType, variable,
                                                                                                 CodeValues.methodCall(
                                                                                                         valueAt,
@@ -148,79 +148,81 @@ class ExpressionResolverTest extends AbstractResolverTest {
                                                                                                                 "a"),
                                                                                                         0)))),
                      expressionResolver.resolveExpression(
-                             new Expression.CollectionAccess(new Expression.Variable("a"), new Expression.Whole(0))));
+                             new BindExpression.CollectionAccess(new BindExpression.Variable("a"),
+                                                                 new BindExpression.Whole(0))));
     }
 
     @Test
     void testResolveCollectionAccessUnknownProperty() {
         resolverContainer.getNameResolver().storeIdType("a", Label.class);
         assertThrows(IllegalArgumentException.class, () -> expressionResolver.resolveExpression(
-                new Expression.MethodCall(new Expression.Variable("a"), "getBlank", List.of())));
+                new BindExpression.MethodCall(new BindExpression.Variable("a"), "getBlank", List.of())));
     }
 
     @Test
     void testResolveNegate() {
         resolverContainer.getNameResolver().storeIdType("a", IntegerProperty.class);
-        CodeValue.Variable variable = CodeValues.variable("integerBinding0");
+        Expression.Variable variable = CodeValues.variable("integerBinding0");
         assertEquals(new ExpressionResult(IntegerBinding.class, variable,
                                           List.of(CodeValues.declaration(IntegerBinding.class, variable,
                                                                          CodeValues.methodCall("a", "negate")))),
-                     expressionResolver.resolveExpression(new Expression.Negate(new Expression.Variable("a"))));
+                     expressionResolver.resolveExpression(new BindExpression.Negate(new BindExpression.Variable("a"))));
     }
 
     @Test
     void testResolveNegateObservable() {
         resolverContainer.getNameResolver().storeIdType("a", ObservableNumberValue.class);
-        CodeValue.Variable variable = CodeValues.variable("numberBinding0");
+        Expression.Variable variable = CodeValues.variable("numberBinding0");
         assertEquals(new ExpressionResult(NumberBinding.class, variable,
                                           List.of(CodeValues.declaration(NumberBinding.class, variable,
                                                                          CodeValues.methodCall(Bindings.class, "negate",
                                                                                                CodeValues.variable(
                                                                                                        "a"))))),
-                     expressionResolver.resolveExpression(new Expression.Negate(new Expression.Variable("a"))));
+                     expressionResolver.resolveExpression(new BindExpression.Negate(new BindExpression.Variable("a"))));
     }
 
     @Test
     void testResolveAdd() {
         resolverContainer.getNameResolver().storeIdType("a", IntegerProperty.class);
-        CodeValue.Variable variable = CodeValues.variable("integerBinding0");
+        Expression.Variable variable = CodeValues.variable("integerBinding0");
         assertEquals(new ExpressionResult(IntegerBinding.class, variable,
                                           List.of(CodeValues.declaration(IntegerBinding.class, variable,
                                                                          CodeValues.methodCall(CodeValues.variable("a"),
                                                                                                "add", 0)))),
                      expressionResolver.resolveExpression(
-                             new Expression.Add(new Expression.Variable("a"), new Expression.Whole(0))));
+                             new BindExpression.Add(new BindExpression.Variable("a"), new BindExpression.Whole(0))));
     }
 
     @Test
     void testResolveAddObservable() {
         resolverContainer.getNameResolver().storeIdType("a", ObservableNumberValue.class);
-        CodeValue.Variable variable = CodeValues.variable("numberBinding0");
+        Expression.Variable variable = CodeValues.variable("numberBinding0");
         assertEquals(new ExpressionResult(NumberBinding.class, variable,
                                           List.of(CodeValues.declaration(NumberBinding.class, variable,
                                                                          CodeValues.methodCall(Bindings.class, "add",
                                                                                                CodeValues.variable("a"),
                                                                                                0)))),
                      expressionResolver.resolveExpression(
-                             new Expression.Add(new Expression.Variable("a"), new Expression.Whole(0))));
+                             new BindExpression.Add(new BindExpression.Variable("a"), new BindExpression.Whole(0))));
     }
 
     @Test
     void testResolveSubtract() {
         resolverContainer.getNameResolver().storeIdType("a", IntegerProperty.class);
-        CodeValue.Variable variable = CodeValues.variable("integerBinding0");
+        Expression.Variable variable = CodeValues.variable("integerBinding0");
         assertEquals(new ExpressionResult(IntegerBinding.class, variable,
                                           List.of(CodeValues.declaration(IntegerBinding.class, variable,
                                                                          CodeValues.methodCall(CodeValues.variable("a"),
                                                                                                "subtract", 0)))),
                      expressionResolver.resolveExpression(
-                             new Expression.Subtract(new Expression.Variable("a"), new Expression.Whole(0))));
+                             new BindExpression.Subtract(new BindExpression.Variable("a"),
+                                                         new BindExpression.Whole(0))));
     }
 
     @Test
     void testResolveSubtractObservable() {
         resolverContainer.getNameResolver().storeIdType("a", ObservableNumberValue.class);
-        CodeValue.Variable variable = CodeValues.variable("numberBinding0");
+        Expression.Variable variable = CodeValues.variable("numberBinding0");
         assertEquals(new ExpressionResult(NumberBinding.class, variable,
                                           List.of(CodeValues.declaration(NumberBinding.class, variable,
                                                                          CodeValues.methodCall(Bindings.class,
@@ -228,25 +230,27 @@ class ExpressionResolverTest extends AbstractResolverTest {
                                                                                                CodeValues.variable("a"),
                                                                                                0)))),
                      expressionResolver.resolveExpression(
-                             new Expression.Subtract(new Expression.Variable("a"), new Expression.Whole(0))));
+                             new BindExpression.Subtract(new BindExpression.Variable("a"),
+                                                         new BindExpression.Whole(0))));
     }
 
     @Test
     void testResolveMultiply() {
         resolverContainer.getNameResolver().storeIdType("a", IntegerProperty.class);
-        CodeValue.Variable variable = CodeValues.variable("integerBinding0");
+        Expression.Variable variable = CodeValues.variable("integerBinding0");
         assertEquals(new ExpressionResult(IntegerBinding.class, variable,
                                           List.of(CodeValues.declaration(IntegerBinding.class, variable,
                                                                          CodeValues.methodCall(CodeValues.variable("a"),
                                                                                                "multiply", 0)))),
                      expressionResolver.resolveExpression(
-                             new Expression.Multiply(new Expression.Variable("a"), new Expression.Whole(0))));
+                             new BindExpression.Multiply(new BindExpression.Variable("a"),
+                                                         new BindExpression.Whole(0))));
     }
 
     @Test
     void testResolveMultiplyObservable() {
         resolverContainer.getNameResolver().storeIdType("a", ObservableNumberValue.class);
-        CodeValue.Variable variable = CodeValues.variable("numberBinding0");
+        Expression.Variable variable = CodeValues.variable("numberBinding0");
         assertEquals(new ExpressionResult(NumberBinding.class, variable,
                                           List.of(CodeValues.declaration(NumberBinding.class, variable,
                                                                          CodeValues.methodCall(Bindings.class,
@@ -254,56 +258,58 @@ class ExpressionResolverTest extends AbstractResolverTest {
                                                                                                CodeValues.variable("a"),
                                                                                                0)))),
                      expressionResolver.resolveExpression(
-                             new Expression.Multiply(new Expression.Variable("a"), new Expression.Whole(0))));
+                             new BindExpression.Multiply(new BindExpression.Variable("a"),
+                                                         new BindExpression.Whole(0))));
     }
 
     @Test
     void testResolveDivide() {
         resolverContainer.getNameResolver().storeIdType("a", IntegerProperty.class);
-        CodeValue.Variable variable = CodeValues.variable("integerBinding0");
+        Expression.Variable variable = CodeValues.variable("integerBinding0");
         assertEquals(new ExpressionResult(IntegerBinding.class, variable,
                                           List.of(CodeValues.declaration(IntegerBinding.class, variable,
                                                                          CodeValues.methodCall(CodeValues.variable("a"),
                                                                                                "divide", 0)))),
                      expressionResolver.resolveExpression(
-                             new Expression.Divide(new Expression.Variable("a"), new Expression.Whole(0))));
+                             new BindExpression.Divide(new BindExpression.Variable("a"), new BindExpression.Whole(0))));
     }
 
     @Test
     void testResolveDivideObservable() {
         resolverContainer.getNameResolver().storeIdType("a", ObservableNumberValue.class);
-        CodeValue.Variable variable = CodeValues.variable("numberBinding0");
+        Expression.Variable variable = CodeValues.variable("numberBinding0");
         assertEquals(new ExpressionResult(NumberBinding.class, variable,
                                           List.of(CodeValues.declaration(NumberBinding.class, variable,
                                                                          CodeValues.methodCall(Bindings.class, "divide",
                                                                                                CodeValues.variable("a"),
                                                                                                0)))),
                      expressionResolver.resolveExpression(
-                             new Expression.Divide(new Expression.Variable("a"), new Expression.Whole(0))));
+                             new BindExpression.Divide(new BindExpression.Variable("a"), new BindExpression.Whole(0))));
     }
 
     @Test
     void testResolveModulo() {
         assertThrows(UnsupportedOperationException.class, () -> expressionResolver.resolveExpression(
-                new Expression.Modulo(new Expression.Variable("a"), new Expression.Whole(0))));
+                new BindExpression.Modulo(new BindExpression.Variable("a"), new BindExpression.Whole(0))));
     }
 
     @Test
     void testResolveGreaterThan() {
         resolverContainer.getNameResolver().storeIdType("a", IntegerProperty.class);
-        CodeValue.Variable variable = CodeValues.variable("booleanBinding0");
+        Expression.Variable variable = CodeValues.variable("booleanBinding0");
         assertEquals(new ExpressionResult(BooleanBinding.class, variable,
                                           List.of(CodeValues.declaration(BooleanBinding.class, variable,
                                                                          CodeValues.methodCall(CodeValues.variable("a"),
                                                                                                "greaterThan", 0)))),
                      expressionResolver.resolveExpression(
-                             new Expression.GreaterThan(new Expression.Variable("a"), new Expression.Whole(0))));
+                             new BindExpression.GreaterThan(new BindExpression.Variable("a"),
+                                                            new BindExpression.Whole(0))));
     }
 
     @Test
     void testResolveGreaterThanObservable() {
         resolverContainer.getNameResolver().storeIdType("a", ObservableNumberValue.class);
-        CodeValue.Variable variable = CodeValues.variable("booleanBinding0");
+        Expression.Variable variable = CodeValues.variable("booleanBinding0");
         assertEquals(new ExpressionResult(BooleanBinding.class, variable,
                                           List.of(CodeValues.declaration(BooleanBinding.class, variable,
                                                                          CodeValues.methodCall(Bindings.class,
@@ -311,26 +317,28 @@ class ExpressionResolverTest extends AbstractResolverTest {
                                                                                                CodeValues.variable("a"),
                                                                                                0)))),
                      expressionResolver.resolveExpression(
-                             new Expression.GreaterThan(new Expression.Variable("a"), new Expression.Whole(0))));
+                             new BindExpression.GreaterThan(new BindExpression.Variable("a"),
+                                                            new BindExpression.Whole(0))));
     }
 
     @Test
     void testResolveGreaterThanEqual() {
         resolverContainer.getNameResolver().storeIdType("a", IntegerProperty.class);
-        CodeValue.Variable variable = CodeValues.variable("booleanBinding0");
+        Expression.Variable variable = CodeValues.variable("booleanBinding0");
         assertEquals(new ExpressionResult(BooleanBinding.class, variable,
                                           List.of(CodeValues.declaration(BooleanBinding.class, variable,
                                                                          CodeValues.methodCall(CodeValues.variable("a"),
                                                                                                "greaterThanOrEqualTo",
                                                                                                0)))),
                      expressionResolver.resolveExpression(
-                             new Expression.GreaterThanEqual(new Expression.Variable("a"), new Expression.Whole(0))));
+                             new BindExpression.GreaterThanEqual(new BindExpression.Variable("a"),
+                                                                 new BindExpression.Whole(0))));
     }
 
     @Test
     void testResolveGreaterThanOrEqualObservable() {
         resolverContainer.getNameResolver().storeIdType("a", ObservableNumberValue.class);
-        CodeValue.Variable variable = CodeValues.variable("booleanBinding0");
+        Expression.Variable variable = CodeValues.variable("booleanBinding0");
         assertEquals(new ExpressionResult(BooleanBinding.class, variable,
                                           List.of(CodeValues.declaration(BooleanBinding.class, variable,
                                                                          CodeValues.methodCall(Bindings.class,
@@ -338,25 +346,27 @@ class ExpressionResolverTest extends AbstractResolverTest {
                                                                                                CodeValues.variable("a"),
                                                                                                0)))),
                      expressionResolver.resolveExpression(
-                             new Expression.GreaterThanEqual(new Expression.Variable("a"), new Expression.Whole(0))));
+                             new BindExpression.GreaterThanEqual(new BindExpression.Variable("a"),
+                                                                 new BindExpression.Whole(0))));
     }
 
     @Test
     void testResolveLessThan() {
         resolverContainer.getNameResolver().storeIdType("a", IntegerProperty.class);
-        CodeValue.Variable variable = CodeValues.variable("booleanBinding0");
+        Expression.Variable variable = CodeValues.variable("booleanBinding0");
         assertEquals(new ExpressionResult(BooleanBinding.class, variable,
                                           List.of(CodeValues.declaration(BooleanBinding.class, variable,
                                                                          CodeValues.methodCall(CodeValues.variable("a"),
                                                                                                "lessThan", 0)))),
                      expressionResolver.resolveExpression(
-                             new Expression.LessThan(new Expression.Variable("a"), new Expression.Whole(0))));
+                             new BindExpression.LessThan(new BindExpression.Variable("a"),
+                                                         new BindExpression.Whole(0))));
     }
 
     @Test
     void testResolveLessThanObservable() {
         resolverContainer.getNameResolver().storeIdType("a", ObservableNumberValue.class);
-        CodeValue.Variable variable = CodeValues.variable("booleanBinding0");
+        Expression.Variable variable = CodeValues.variable("booleanBinding0");
         assertEquals(new ExpressionResult(BooleanBinding.class, variable,
                                           List.of(CodeValues.declaration(BooleanBinding.class, variable,
                                                                          CodeValues.methodCall(Bindings.class,
@@ -364,26 +374,28 @@ class ExpressionResolverTest extends AbstractResolverTest {
                                                                                                CodeValues.variable("a"),
                                                                                                0)))),
                      expressionResolver.resolveExpression(
-                             new Expression.LessThan(new Expression.Variable("a"), new Expression.Whole(0))));
+                             new BindExpression.LessThan(new BindExpression.Variable("a"),
+                                                         new BindExpression.Whole(0))));
     }
 
     @Test
     void testResolveLessThanEqual() {
         resolverContainer.getNameResolver().storeIdType("a", IntegerProperty.class);
-        CodeValue.Variable variable = CodeValues.variable("booleanBinding0");
+        Expression.Variable variable = CodeValues.variable("booleanBinding0");
         assertEquals(new ExpressionResult(BooleanBinding.class, variable,
                                           List.of(CodeValues.declaration(BooleanBinding.class, variable,
                                                                          CodeValues.methodCall(CodeValues.variable("a"),
                                                                                                "lessThanOrEqualTo",
                                                                                                0)))),
                      expressionResolver.resolveExpression(
-                             new Expression.LessThanEqual(new Expression.Variable("a"), new Expression.Whole(0))));
+                             new BindExpression.LessThanEqual(new BindExpression.Variable("a"),
+                                                              new BindExpression.Whole(0))));
     }
 
     @Test
     void testResolveLessThanOrEqualObservable() {
         resolverContainer.getNameResolver().storeIdType("a", ObservableNumberValue.class);
-        CodeValue.Variable variable = CodeValues.variable("booleanBinding0");
+        Expression.Variable variable = CodeValues.variable("booleanBinding0");
         assertEquals(new ExpressionResult(BooleanBinding.class, variable,
                                           List.of(CodeValues.declaration(BooleanBinding.class, variable,
                                                                          CodeValues.methodCall(Bindings.class,
@@ -391,50 +403,52 @@ class ExpressionResolverTest extends AbstractResolverTest {
                                                                                                CodeValues.variable("a"),
                                                                                                0)))),
                      expressionResolver.resolveExpression(
-                             new Expression.LessThanEqual(new Expression.Variable("a"), new Expression.Whole(0))));
+                             new BindExpression.LessThanEqual(new BindExpression.Variable("a"),
+                                                              new BindExpression.Whole(0))));
     }
 
     @Test
     void testResolveEqual() {
         resolverContainer.getNameResolver().storeIdType("a", IntegerProperty.class);
-        CodeValue.Variable variable = CodeValues.variable("booleanBinding0");
+        Expression.Variable variable = CodeValues.variable("booleanBinding0");
         assertEquals(new ExpressionResult(BooleanBinding.class, variable,
                                           List.of(CodeValues.declaration(BooleanBinding.class, variable,
                                                                          CodeValues.methodCall(CodeValues.variable("a"),
                                                                                                "isEqualTo", 0)))),
                      expressionResolver.resolveExpression(
-                             new Expression.Equal(new Expression.Variable("a"), new Expression.Whole(0))));
+                             new BindExpression.Equal(new BindExpression.Variable("a"), new BindExpression.Whole(0))));
     }
 
     @Test
     void testResolveEqualObservable() {
         resolverContainer.getNameResolver().storeIdType("a", ObservableNumberValue.class);
-        CodeValue.Variable variable = CodeValues.variable("booleanBinding0");
+        Expression.Variable variable = CodeValues.variable("booleanBinding0");
         assertEquals(new ExpressionResult(BooleanBinding.class, variable,
                                           List.of(CodeValues.declaration(BooleanBinding.class, variable,
                                                                          CodeValues.methodCall(Bindings.class, "equal",
                                                                                                CodeValues.variable("a"),
                                                                                                0)))),
                      expressionResolver.resolveExpression(
-                             new Expression.Equal(new Expression.Variable("a"), new Expression.Whole(0))));
+                             new BindExpression.Equal(new BindExpression.Variable("a"), new BindExpression.Whole(0))));
     }
 
     @Test
     void testResolveNotEqual() {
         resolverContainer.getNameResolver().storeIdType("a", IntegerProperty.class);
-        CodeValue.Variable variable = CodeValues.variable("booleanBinding0");
+        Expression.Variable variable = CodeValues.variable("booleanBinding0");
         assertEquals(new ExpressionResult(BooleanBinding.class, variable,
                                           List.of(CodeValues.declaration(BooleanBinding.class, variable,
                                                                          CodeValues.methodCall(CodeValues.variable("a"),
                                                                                                "isNotEqualTo", 0)))),
                      expressionResolver.resolveExpression(
-                             new Expression.NotEqual(new Expression.Variable("a"), new Expression.Whole(0))));
+                             new BindExpression.NotEqual(new BindExpression.Variable("a"),
+                                                         new BindExpression.Whole(0))));
     }
 
     @Test
     void testResolveNotEqualObservable() {
         resolverContainer.getNameResolver().storeIdType("a", ObservableNumberValue.class);
-        CodeValue.Variable variable = CodeValues.variable("booleanBinding0");
+        Expression.Variable variable = CodeValues.variable("booleanBinding0");
         assertEquals(new ExpressionResult(BooleanBinding.class, variable,
                                           List.of(CodeValues.declaration(BooleanBinding.class, variable,
                                                                          CodeValues.methodCall(Bindings.class,
@@ -442,14 +456,15 @@ class ExpressionResolverTest extends AbstractResolverTest {
                                                                                                CodeValues.variable("a"),
                                                                                                0)))),
                      expressionResolver.resolveExpression(
-                             new Expression.NotEqual(new Expression.Variable("a"), new Expression.Whole(0))));
+                             new BindExpression.NotEqual(new BindExpression.Variable("a"),
+                                                         new BindExpression.Whole(0))));
     }
 
     @Test
     void testResolveAnd() {
         resolverContainer.getNameResolver().storeIdType("a", BooleanProperty.class);
         resolverContainer.getNameResolver().storeIdType("b", BooleanProperty.class);
-        CodeValue.Variable variable = CodeValues.variable("booleanBinding0");
+        Expression.Variable variable = CodeValues.variable("booleanBinding0");
         assertEquals(new ExpressionResult(BooleanBinding.class, variable,
                                           List.of(CodeValues.declaration(BooleanBinding.class, variable,
                                                                          CodeValues.methodCall(CodeValues.variable("a"),
@@ -457,14 +472,15 @@ class ExpressionResolverTest extends AbstractResolverTest {
                                                                                                CodeValues.variable(
                                                                                                        "b"))))),
                      expressionResolver.resolveExpression(
-                             new Expression.And(new Expression.Variable("a"), new Expression.Variable("b"))));
+                             new BindExpression.And(new BindExpression.Variable("a"),
+                                                    new BindExpression.Variable("b"))));
     }
 
     @Test
     void testResolveAndObservable() {
         resolverContainer.getNameResolver().storeIdType("a", ObservableBooleanValue.class);
         resolverContainer.getNameResolver().storeIdType("b", ObservableBooleanValue.class);
-        CodeValue.Variable variable = CodeValues.variable("booleanBinding0");
+        Expression.Variable variable = CodeValues.variable("booleanBinding0");
         assertEquals(new ExpressionResult(BooleanBinding.class, variable,
                                           List.of(CodeValues.declaration(BooleanBinding.class, variable,
                                                                          CodeValues.methodCall(Bindings.class, "and",
@@ -472,14 +488,15 @@ class ExpressionResolverTest extends AbstractResolverTest {
                                                                                                CodeValues.variable(
                                                                                                        "b"))))),
                      expressionResolver.resolveExpression(
-                             new Expression.And(new Expression.Variable("a"), new Expression.Variable("b"))));
+                             new BindExpression.And(new BindExpression.Variable("a"),
+                                                    new BindExpression.Variable("b"))));
     }
 
     @Test
     void testResolveOr() {
         resolverContainer.getNameResolver().storeIdType("a", BooleanProperty.class);
         resolverContainer.getNameResolver().storeIdType("b", BooleanProperty.class);
-        CodeValue.Variable variable = CodeValues.variable("booleanBinding0");
+        Expression.Variable variable = CodeValues.variable("booleanBinding0");
         assertEquals(new ExpressionResult(BooleanBinding.class, variable,
                                           List.of(CodeValues.declaration(BooleanBinding.class, variable,
                                                                          CodeValues.methodCall(CodeValues.variable("a"),
@@ -487,14 +504,15 @@ class ExpressionResolverTest extends AbstractResolverTest {
                                                                                                CodeValues.variable(
                                                                                                        "b"))))),
                      expressionResolver.resolveExpression(
-                             new Expression.Or(new Expression.Variable("a"), new Expression.Variable("b"))));
+                             new BindExpression.Or(new BindExpression.Variable("a"),
+                                                   new BindExpression.Variable("b"))));
     }
 
     @Test
     void testResolveOrObservable() {
         resolverContainer.getNameResolver().storeIdType("a", ObservableBooleanValue.class);
         resolverContainer.getNameResolver().storeIdType("b", ObservableBooleanValue.class);
-        CodeValue.Variable variable = CodeValues.variable("booleanBinding0");
+        Expression.Variable variable = CodeValues.variable("booleanBinding0");
         assertEquals(new ExpressionResult(BooleanBinding.class, variable,
                                           List.of(CodeValues.declaration(BooleanBinding.class, variable,
                                                                          CodeValues.methodCall(Bindings.class, "or",
@@ -502,30 +520,31 @@ class ExpressionResolverTest extends AbstractResolverTest {
                                                                                                CodeValues.variable(
                                                                                                        "b"))))),
                      expressionResolver.resolveExpression(
-                             new Expression.Or(new Expression.Variable("a"), new Expression.Variable("b"))));
+                             new BindExpression.Or(new BindExpression.Variable("a"),
+                                                   new BindExpression.Variable("b"))));
     }
 
     @Test
     void testResolveNot() {
         resolverContainer.getNameResolver().storeIdType("a", BooleanProperty.class);
-        CodeValue.Variable variable = CodeValues.variable("booleanBinding0");
+        Expression.Variable variable = CodeValues.variable("booleanBinding0");
         assertEquals(new ExpressionResult(BooleanBinding.class, variable,
                                           List.of(CodeValues.declaration(BooleanBinding.class, variable,
                                                                          CodeValues.methodCall(CodeValues.variable("a"),
                                                                                                "not")))),
-                     expressionResolver.resolveExpression(new Expression.Invert(new Expression.Variable("a"))));
+                     expressionResolver.resolveExpression(new BindExpression.Invert(new BindExpression.Variable("a"))));
     }
 
     @Test
     void testResolveNotObservable() {
         resolverContainer.getNameResolver().storeIdType("a", ObservableBooleanValue.class);
-        CodeValue.Variable variable = CodeValues.variable("booleanBinding0");
+        Expression.Variable variable = CodeValues.variable("booleanBinding0");
         assertEquals(new ExpressionResult(BooleanBinding.class, variable,
                                           List.of(CodeValues.declaration(BooleanBinding.class, variable,
                                                                          CodeValues.methodCall(Bindings.class, "not",
                                                                                                CodeValues.variable(
                                                                                                        "a"))))),
-                     expressionResolver.resolveExpression(new Expression.Invert(new Expression.Variable("a"))));
+                     expressionResolver.resolveExpression(new BindExpression.Invert(new BindExpression.Variable("a"))));
     }
 
 }

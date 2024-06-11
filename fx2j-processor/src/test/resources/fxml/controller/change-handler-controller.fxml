@@ -7,6 +7,6 @@
         <Button onTextChange="#onTextChange" fx:id="textChangeButton"/>
     </children>
     <styleClass onChange="#onStyleClassChange"/>
-    <pseudoClassStates onChange="#onPsuedoStyleClassChange"/>
+    <pseudoClassStates onChange="#onPseudoClassStatesChange"/>
     <properties onChange="#onPropertiesChange"/>
 </AnchorPane>

@@ -1,122 +1,122 @@
 package io.github.sheikah45.fx2j.parser.antlr;
 
-import io.github.sheikah45.fx2j.parser.property.Expression;
+import io.github.sheikah45.fx2j.parser.property.BindExpression;
 import org.antlr.v4.runtime.tree.AbstractParseTreeVisitor;
 
-public class BindExpressionVisitorImpl extends AbstractParseTreeVisitor<Expression>
-        implements BindExpressionVisitor<Expression> {
+public class BindExpressionVisitorImpl extends AbstractParseTreeVisitor<BindExpression>
+        implements BindExpressionVisitor<BindExpression> {
     @Override
-    public Expression visitFractionLiteral(BindExpressionParser.FractionLiteralContext ctx) {
-        return new Expression.Fraction(Double.parseDouble(ctx.getText()));
+    public BindExpression visitFractionLiteral(BindExpressionParser.FractionLiteralContext ctx) {
+        return new BindExpression.Fraction(Double.parseDouble(ctx.getText()));
     }
 
     @Override
-    public Expression visitCollectionAccess(BindExpressionParser.CollectionAccessContext ctx) {
-        return new Expression.CollectionAccess(visit(ctx.collection), visit(ctx.accessor));
+    public BindExpression visitCollectionAccess(BindExpressionParser.CollectionAccessContext ctx) {
+        return new BindExpression.CollectionAccess(visit(ctx.collection), visit(ctx.accessor));
     }
 
     @Override
-    public Expression visitNullLiteral(BindExpressionParser.NullLiteralContext ctx) {
-        return new Expression.Null();
+    public BindExpression visitNullLiteral(BindExpressionParser.NullLiteralContext ctx) {
+        return new BindExpression.Null();
     }
 
     @Override
-    public Expression visitInvert(BindExpressionParser.InvertContext ctx) {
-        return new Expression.Invert(visit(ctx.base));
+    public BindExpression visitInvert(BindExpressionParser.InvertContext ctx) {
+        return new BindExpression.Invert(visit(ctx.base));
     }
 
     @Override
-    public Expression visitComparative(BindExpressionParser.ComparativeContext ctx) {
-        Expression left = visit(ctx.left);
-        Expression right = visit(ctx.right);
+    public BindExpression visitComparative(BindExpressionParser.ComparativeContext ctx) {
+        BindExpression left = visit(ctx.left);
+        BindExpression right = visit(ctx.right);
         return switch (ctx.operator.getText()) {
-            case "==" -> new Expression.Equal(left, right);
-            case "!=" -> new Expression.NotEqual(left, right);
-            case ">=" -> new Expression.GreaterThanEqual(left, right);
-            case ">" -> new Expression.GreaterThan(left, right);
-            case "<=" -> new Expression.LessThanEqual(left, right);
-            case "<" -> new Expression.LessThan(left, right);
+            case "==" -> new BindExpression.Equal(left, right);
+            case "!=" -> new BindExpression.NotEqual(left, right);
+            case ">=" -> new BindExpression.GreaterThanEqual(left, right);
+            case ">" -> new BindExpression.GreaterThan(left, right);
+            case "<=" -> new BindExpression.LessThanEqual(left, right);
+            case "<" -> new BindExpression.LessThan(left, right);
             case String operator -> throw new IllegalArgumentException("Unknown operator: %s".formatted(operator));
         };
     }
 
     @Override
-    public Expression visitMultiplicative(BindExpressionParser.MultiplicativeContext ctx) {
-        Expression left = visit(ctx.left);
-        Expression right = visit(ctx.right);
+    public BindExpression visitMultiplicative(BindExpressionParser.MultiplicativeContext ctx) {
+        BindExpression left = visit(ctx.left);
+        BindExpression right = visit(ctx.right);
         return switch (ctx.operator.getText()) {
-            case "*" -> new Expression.Multiply(left, right);
-            case "/" -> new Expression.Divide(left, right);
-            case "%" -> new Expression.Modulo(left, right);
+            case "*" -> new BindExpression.Multiply(left, right);
+            case "/" -> new BindExpression.Divide(left, right);
+            case "%" -> new BindExpression.Modulo(left, right);
             case String operator -> throw new IllegalArgumentException("Unknown operator: %s".formatted(operator));
         };
     }
 
     @Override
-    public Expression visitLogical(BindExpressionParser.LogicalContext ctx) {
-        Expression left = visit(ctx.left);
-        Expression right = visit(ctx.right);
+    public BindExpression visitLogical(BindExpressionParser.LogicalContext ctx) {
+        BindExpression left = visit(ctx.left);
+        BindExpression right = visit(ctx.right);
         return switch (ctx.operator.getText()) {
-            case "&&" -> new Expression.And(left, right);
-            case "||" -> new Expression.Or(left, right);
+            case "&&" -> new BindExpression.And(left, right);
+            case "||" -> new BindExpression.Or(left, right);
             case String operator -> throw new IllegalArgumentException("Unknown operator: %s".formatted(operator));
         };
     }
 
     @Override
-    public Expression visitEnclosed(BindExpressionParser.EnclosedContext ctx) {
+    public BindExpression visitEnclosed(BindExpressionParser.EnclosedContext ctx) {
         return visit(ctx.inside);
     }
 
     @Override
-    public Expression visitAdditive(BindExpressionParser.AdditiveContext ctx) {
-        Expression left = visit(ctx.left);
-        Expression right = visit(ctx.right);
+    public BindExpression visitAdditive(BindExpressionParser.AdditiveContext ctx) {
+        BindExpression left = visit(ctx.left);
+        BindExpression right = visit(ctx.right);
         return switch (ctx.operator.getText()) {
-            case "+" -> new Expression.Add(left, right);
-            case "-" -> new Expression.Subtract(left, right);
+            case "+" -> new BindExpression.Add(left, right);
+            case "-" -> new BindExpression.Subtract(left, right);
             case String operator -> throw new IllegalArgumentException("Unknown operator: %s".formatted(operator));
         };
     }
 
     @Override
-    public Expression visitStringLiteral(BindExpressionParser.StringLiteralContext ctx) {
+    public BindExpression visitStringLiteral(BindExpressionParser.StringLiteralContext ctx) {
         String text = ctx.getText();
-        return new Expression.String(text.substring(1, text.length() - 1));
+        return new BindExpression.String(text.substring(1, text.length() - 1));
     }
 
     @Override
-    public Expression visitNegate(BindExpressionParser.NegateContext ctx) {
-        return new Expression.Negate(visit(ctx.base));
+    public BindExpression visitNegate(BindExpressionParser.NegateContext ctx) {
+        return new BindExpression.Negate(visit(ctx.base));
     }
 
     @Override
-    public Expression visitVariable(BindExpressionParser.VariableContext ctx) {
-        return new Expression.Variable(ctx.getText());
+    public BindExpression visitVariable(BindExpressionParser.VariableContext ctx) {
+        return new BindExpression.Variable(ctx.getText());
     }
 
     @Override
-    public Expression visitWholeLiteral(BindExpressionParser.WholeLiteralContext ctx) {
-        return new Expression.Whole(Long.parseLong(ctx.getText()));
+    public BindExpression visitWholeLiteral(BindExpressionParser.WholeLiteralContext ctx) {
+        return new BindExpression.Whole(Long.parseLong(ctx.getText()));
     }
 
     @Override
-    public Expression visitPropertyRead(BindExpressionParser.PropertyReadContext ctx) {
-        return new Expression.PropertyRead(visit(ctx.base), ctx.property.getText());
+    public BindExpression visitPropertyRead(BindExpressionParser.PropertyReadContext ctx) {
+        return new BindExpression.PropertyRead(visit(ctx.base), ctx.property.getText());
     }
 
     @Override
-    public Expression visitBooleanLiteral(BindExpressionParser.BooleanLiteralContext ctx) {
+    public BindExpression visitBooleanLiteral(BindExpressionParser.BooleanLiteralContext ctx) {
         return switch (ctx.getText()) {
-            case "true" -> new Expression.Boolean(true);
-            case "false" -> new Expression.Boolean(false);
+            case "true" -> new BindExpression.Boolean(true);
+            case "false" -> new BindExpression.Boolean(false);
             case String val -> throw new IllegalArgumentException("Unknown boolean: %s".formatted(val));
         };
     }
 
     @Override
-    public Expression visitMethodCall(BindExpressionParser.MethodCallContext ctx) {
-        return new Expression.MethodCall(visit(ctx.base), ctx.method.getText(),
-                                         ctx.args.stream().map(this::visit).toList());
+    public BindExpression visitMethodCall(BindExpressionParser.MethodCallContext ctx) {
+        return new BindExpression.MethodCall(visit(ctx.base), ctx.method.getText(),
+                                             ctx.args.stream().map(this::visit).toList());
     }
 }

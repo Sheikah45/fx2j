@@ -1,8 +1,9 @@
 package io.github.sheikah45.fx2j.processor.internal.resolve;
 
-import io.github.sheikah45.fx2j.parser.property.Expression;
-import io.github.sheikah45.fx2j.processor.internal.code.CodeValue;
+import io.github.sheikah45.fx2j.parser.property.BindExpression;
 import io.github.sheikah45.fx2j.processor.internal.code.CodeValues;
+import io.github.sheikah45.fx2j.processor.internal.code.Expression;
+import io.github.sheikah45.fx2j.processor.internal.code.Statement;
 import io.github.sheikah45.fx2j.processor.internal.model.ExpressionResult;
 
 import java.lang.reflect.Method;
@@ -26,26 +27,26 @@ public class ExpressionResolver {
         this.nameResolver = nameResolver;
     }
 
-    public ExpressionResult resolveExpression(Expression value) {
+    public ExpressionResult resolveExpression(BindExpression value) {
         return switch (value) {
-            case Expression.Null() -> new ExpressionResult(Object.class, CodeValues.nullValue(), List.of());
-            case Expression.Whole(long val) when val > Integer.MAX_VALUE || val < Integer.MIN_VALUE ->
+            case BindExpression.Null() -> new ExpressionResult(Object.class, CodeValues.nullValue(), List.of());
+            case BindExpression.Whole(long val) when val > Integer.MAX_VALUE || val < Integer.MIN_VALUE ->
                     new ExpressionResult(long.class, CodeValues.literal(val), List.of());
-            case Expression.Whole(long val) ->
+            case BindExpression.Whole(long val) ->
                     new ExpressionResult(int.class, CodeValues.literal((int) val), List.of());
-            case Expression.Fraction(double val) when val > Float.MAX_VALUE || val < Float.MIN_VALUE ->
+            case BindExpression.Fraction(double val) when val > Float.MAX_VALUE || val < Float.MIN_VALUE ->
                     new ExpressionResult(double.class, CodeValues.literal(val), List.of());
-            case Expression.Fraction(double val) ->
+            case BindExpression.Fraction(double val) ->
                     new ExpressionResult(float.class, CodeValues.literal((float) val), List.of());
-            case Expression.Boolean(boolean val) ->
+            case BindExpression.Boolean(boolean val) ->
                     new ExpressionResult(boolean.class, CodeValues.literal(val), List.of());
-            case Expression.String(String val) ->
+            case BindExpression.String(String val) ->
                     new ExpressionResult(String.class, CodeValues.literal(val), List.of());
-            case Expression.Variable(String name) ->
+            case BindExpression.Variable(String name) ->
                     new ExpressionResult(nameResolver.resolveTypeById(name), CodeValues.variable(name), List.of());
-            case Expression.PropertyRead(Expression expression, String property) -> {
-                ExpressionResult expressionResult = resolveExpression(expression);
-                List<CodeValue.Declaration> initializers = new ArrayList<>(expressionResult.initializers());
+            case BindExpression.PropertyRead(BindExpression bindExpression, String property) -> {
+                ExpressionResult expressionResult = resolveExpression(bindExpression);
+                List<Statement.Declaration> initializers = new ArrayList<>(expressionResult.initializers());
 
                 Method readProperty = methodResolver.resolveProperty(expressionResult.type(), property)
                                                     .orElseThrow(() -> new IllegalArgumentException(
@@ -58,14 +59,14 @@ public class ExpressionResolver {
                                                         CodeValues.methodCall(expressionResult.value(), readProperty)));
                 yield new ExpressionResult(valueType, CodeValues.variable(identifier), initializers);
             }
-            case Expression.MethodCall(
-                    Expression expression, String methodName, List<Expression> args
+            case BindExpression.MethodCall(
+                    BindExpression bindExpression, String methodName, List<BindExpression> args
             ) -> {
-                ExpressionResult expressionResult = resolveExpression(expression);
-                List<CodeValue.Declaration> initializers = new ArrayList<>(expressionResult.initializers());
+                ExpressionResult expressionResult = resolveExpression(bindExpression);
+                List<Statement.Declaration> initializers = new ArrayList<>(expressionResult.initializers());
                 List<Type> parameterTypes = new ArrayList<>();
-                List<CodeValue.Expression> methodArgs = new ArrayList<>();
-                for (Expression arg : args) {
+                List<Expression> methodArgs = new ArrayList<>();
+                for (BindExpression arg : args) {
                     ExpressionResult argResult = resolveExpression(arg);
                     parameterTypes.add(argResult.type());
                     methodArgs.add(argResult.value());
@@ -85,10 +86,10 @@ public class ExpressionResolver {
                                                                               methodArgs.toArray())));
                 yield new ExpressionResult(valueType, CodeValues.variable(identifier), initializers);
             }
-            case Expression.CollectionAccess(Expression expression, Expression key) -> {
-                ExpressionResult expressionResult = resolveExpression(expression);
+            case BindExpression.CollectionAccess(BindExpression bindExpression, BindExpression key) -> {
+                ExpressionResult expressionResult = resolveExpression(bindExpression);
                 ExpressionResult keyResult = resolveExpression(key);
-                List<CodeValue.Declaration> initializers = new ArrayList<>();
+                List<Statement.Declaration> initializers = new ArrayList<>();
                 initializers.addAll(expressionResult.initializers());
                 initializers.addAll(keyResult.initializers());
                 Class<?> bindingsClass = typeResolver.resolve(BINDINGS_CLASS_NAME);
@@ -103,39 +104,44 @@ public class ExpressionResolver {
                                                                               keyResult.value())));
                 yield new ExpressionResult(valueType, CodeValues.variable(identifier), initializers);
             }
-            case Expression.Add(Expression left, Expression right) ->
+            case BindExpression.Add(BindExpression left, BindExpression right) ->
                     computeExpressionWithMethod(left, right, "add", "concat");
-            case Expression.Subtract(Expression left, Expression right) ->
+            case BindExpression.Subtract(BindExpression left, BindExpression right) ->
                     computeExpressionWithMethod(left, right, "subtract");
-            case Expression.Multiply(Expression left, Expression right) ->
+            case BindExpression.Multiply(BindExpression left, BindExpression right) ->
                     computeExpressionWithMethod(left, right, "multiply");
-            case Expression.Divide(Expression left, Expression right) ->
+            case BindExpression.Divide(BindExpression left, BindExpression right) ->
                     computeExpressionWithMethod(left, right, "divide");
-            case Expression.GreaterThan(Expression left, Expression right) ->
+            case BindExpression.GreaterThan(BindExpression left, BindExpression right) ->
                     computeExpressionWithMethod(left, right, "greaterThan");
-            case Expression.GreaterThanEqual(Expression left, Expression right) ->
+            case BindExpression.GreaterThanEqual(BindExpression left, BindExpression right) ->
                     computeExpressionWithMethod(left, right, "greaterThanOrEqualTo", "greaterThanOrEqual");
-            case Expression.LessThan(Expression left, Expression right) ->
+            case BindExpression.LessThan(BindExpression left, BindExpression right) ->
                     computeExpressionWithMethod(left, right, "lessThan");
-            case Expression.LessThanEqual(Expression left, Expression right) ->
+            case BindExpression.LessThanEqual(BindExpression left, BindExpression right) ->
                     computeExpressionWithMethod(left, right, "lessThanOrEqualTo", "lessThanOrEqual");
-            case Expression.Equal(Expression left, Expression right) ->
+            case BindExpression.Equal(BindExpression left, BindExpression right) ->
                     computeExpressionWithMethod(left, right, "isEqualTo", "equal");
-            case Expression.NotEqual(Expression left, Expression right) ->
+            case BindExpression.NotEqual(BindExpression left, BindExpression right) ->
                     computeExpressionWithMethod(left, right, "isNotEqualTo", "notEqual");
-            case Expression.And(Expression left, Expression right) -> computeExpressionWithMethod(left, right, "and");
-            case Expression.Or(Expression left, Expression right) -> computeExpressionWithMethod(left, right, "or");
-            case Expression.Invert(Expression expression) -> computeExpressionWithMethod(expression, "not");
-            case Expression.Negate(Expression expression) -> computeExpressionWithMethod(expression, "negate");
-            case Expression.Modulo ignored ->
+            case BindExpression.And(BindExpression left, BindExpression right) ->
+                    computeExpressionWithMethod(left, right, "and");
+            case BindExpression.Or(BindExpression left, BindExpression right) ->
+                    computeExpressionWithMethod(left, right, "or");
+            case BindExpression.Invert(BindExpression bindExpression) ->
+                    computeExpressionWithMethod(bindExpression, "not");
+            case BindExpression.Negate(BindExpression bindExpression) ->
+                    computeExpressionWithMethod(bindExpression, "negate");
+            case BindExpression.Modulo ignored ->
                     throw new UnsupportedOperationException("Modulo operation in expression not supported");
         };
     }
 
-    private ExpressionResult computeExpressionWithMethod(Expression left, Expression right, String... methodNames) {
+    private ExpressionResult computeExpressionWithMethod(BindExpression left, BindExpression right,
+                                                         String... methodNames) {
         ExpressionResult leftResult = resolveExpression(left);
         ExpressionResult rightResult = resolveExpression(right);
-        List<CodeValue.Declaration> initializers = new ArrayList<>();
+        List<Statement.Declaration> initializers = new ArrayList<>();
         initializers.addAll(leftResult.initializers());
         initializers.addAll(rightResult.initializers());
 
@@ -175,9 +181,9 @@ public class ExpressionResolver {
                 "Cannot %s %s and %s".formatted(String.join(" or ", methodNames), left, right));
     }
 
-    private ExpressionResult computeExpressionWithMethod(Expression value, String methodName) {
+    private ExpressionResult computeExpressionWithMethod(BindExpression value, String methodName) {
         ExpressionResult result = resolveExpression(value);
-        List<CodeValue.Declaration> initializers = new ArrayList<>(result.initializers());
+        List<Statement.Declaration> initializers = new ArrayList<>(result.initializers());
 
         Method directMethod = methodResolver.findMethod(result.type(), methodName).orElse(null);
         if (directMethod != null) {

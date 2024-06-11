@@ -9,11 +9,7 @@ import io.github.sheikah45.fx2j.parser.attribute.InstancePropertyAttribute;
 import io.github.sheikah45.fx2j.parser.attribute.NameSpaceAttribute;
 import io.github.sheikah45.fx2j.parser.attribute.StaticPropertyAttribute;
 import io.github.sheikah45.fx2j.parser.element.DeclarationElement;
-import io.github.sheikah45.fx2j.parser.element.ElementContent;
-import io.github.sheikah45.fx2j.parser.element.FxmlElement;
-import io.github.sheikah45.fx2j.parser.element.InstanceElement;
-import io.github.sheikah45.fx2j.parser.element.StaticPropertyElement;
-import io.github.sheikah45.fx2j.parser.property.Expression;
+import io.github.sheikah45.fx2j.parser.property.BindExpression;
 import io.github.sheikah45.fx2j.parser.property.Handler;
 import io.github.sheikah45.fx2j.parser.property.Value;
 import org.junit.jupiter.api.Test;
@@ -195,8 +191,8 @@ class FxmlParserPropertyTest {
         DeclarationElement rootNode = fxmlComponents.rootNode();
 
         List<? extends FxmlAttribute> attributes = rootNode.content().attributes();
-        assertEquals(List.of(new InstancePropertyAttribute("text", new Expression.PropertyRead(
-                new Expression.Variable("test"), "text")), NAME_SPACE_ATTRIBUTE), attributes);
+        assertEquals(List.of(new InstancePropertyAttribute("text", new BindExpression.PropertyRead(
+                new BindExpression.Variable("test"), "text")), NAME_SPACE_ATTRIBUTE), attributes);
     }
 
     @Test
@@ -207,13 +203,13 @@ class FxmlParserPropertyTest {
         DeclarationElement rootNode = fxmlComponents.rootNode();
 
         List<? extends FxmlAttribute> attributes = rootNode.content().attributes();
-        assertEquals(List.of(new InstancePropertyAttribute("width", new Expression.Add(new Expression.Add(
-                                     new Expression.PropertyRead(
-                                             new Expression.PropertyRead(new Expression.Variable("test"), "text"), "length"),
-                                     new Expression.Multiply(
-                                             new Expression.PropertyRead(new Expression.Variable("test"), "width"),
-                                             new Expression.PropertyRead(new Expression.Variable("root"), "margin"))),
-                                                                                       new Expression.Whole(
+        assertEquals(List.of(new InstancePropertyAttribute("width", new BindExpression.Add(new BindExpression.Add(
+                                     new BindExpression.PropertyRead(
+                                             new BindExpression.PropertyRead(new BindExpression.Variable("test"), "text"), "length"),
+                                     new BindExpression.Multiply(
+                                             new BindExpression.PropertyRead(new BindExpression.Variable("test"), "width"),
+                                             new BindExpression.PropertyRead(new BindExpression.Variable("root"), "margin"))),
+                                                                                           new BindExpression.Whole(
                                                                                                      10))),
                              NAME_SPACE_ATTRIBUTE), attributes);
     }

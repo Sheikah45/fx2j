@@ -19,7 +19,7 @@ import io.github.sheikah45.fx2j.processor.internal.model.ObjectNodeCode;
 import io.github.sheikah45.fx2j.processor.internal.resolve.MethodResolver;
 import io.github.sheikah45.fx2j.processor.internal.resolve.ResolverContainer;
 import io.github.sheikah45.fx2j.processor.internal.resolve.TypeResolver;
-import io.github.sheikah45.fx2j.processor.internal.utils.CodeBlockUtils;
+import io.github.sheikah45.fx2j.processor.internal.utils.CodeBlockConverter;
 import io.github.sheikah45.fx2j.processor.internal.utils.JavaFileUtils;
 import io.github.sheikah45.fx2j.processor.internal.utils.StringUtils;
 
@@ -175,7 +175,7 @@ public class FxmlProcessor {
 
         buildMethodBuilder.addCode(objectNodeCode.initializers()
                                                  .stream()
-                                                 .map(CodeBlockUtils::convertStatementToCodeBlock)
+                                                 .map(CodeBlockConverter::convertStatementToCodeBlock)
                                                  .collect(CodeBlock.joining("")));
 
         MethodSpec getControllerMethodSpec = MethodSpec.methodBuilder("getController")
@@ -201,7 +201,7 @@ public class FxmlProcessor {
         buildMethodBuilder.addCode("\n");
 
         buildMethodBuilder.addStatement("$N($L)", setRootMethodSpec,
-                                        CodeBlockUtils.convertExpressionToCodeBlock(objectNodeCode.nodeValue()));
+                                        CodeBlockConverter.convertExpressionToCodeBlock(objectNodeCode.nodeValue()));
 
 
         if (controllerClass != Object.class) {

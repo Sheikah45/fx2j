@@ -128,9 +128,9 @@ public class MethodResolver {
 
     private static Optional<Method> findMatchingMethod(String name, int paramCount, Method[] methods) {
         List<Method> matchingMethods = Arrays.stream(methods)
+                                             .filter(method -> !method.isBridge())
                                              .filter(method -> method.getName().equals(name))
                                              .filter(method -> method.getParameterCount() == paramCount)
-                                             .filter(method -> !method.isBridge())
                                              .toList();
 
         if (matchingMethods.size() > 1) {

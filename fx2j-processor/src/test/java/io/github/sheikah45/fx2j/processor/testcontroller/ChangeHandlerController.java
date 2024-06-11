@@ -21,7 +21,7 @@ public class ChangeHandlerController {
     public AnchorPane root;
     public String textValue;
     public final List<String> styleClasses = new ArrayList<>();
-    public final Set<PseudoClass> psudeoStyleClasses = new HashSet<>();
+    public final Set<PseudoClass> pseudoClassStates = new HashSet<>();
     public final Map<Object, Object> properties = new HashMap<>();
 
     public void onTextChange(ObservableValue<? extends String> observable, String oldValue, String newValue) {
@@ -35,9 +35,9 @@ public class ChangeHandlerController {
         }
     }
 
-    public void onPsuedoStyleClassChange(SetChangeListener.Change<? extends PseudoClass> change) {
-        psudeoStyleClasses.add(change.getElementAdded());
-        psudeoStyleClasses.remove(change.getElementRemoved());
+    public void onPseudoClassStatesChange(SetChangeListener.Change<? extends PseudoClass> change) {
+        pseudoClassStates.add(change.getElementAdded());
+        pseudoClassStates.remove(change.getElementRemoved());
     }
 
     public void onPropertiesChange(MapChangeListener.Change<?, ?> change) {
