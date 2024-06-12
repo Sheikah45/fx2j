@@ -7,8 +7,7 @@ import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeVariableName;
 import com.squareup.javapoet.WildcardTypeName;
-import io.github.sheikah45.fx2j.processor.internal.code.Block;
-import io.github.sheikah45.fx2j.processor.internal.code.TypeValue;
+import io.github.sheikah45.fx2j.processor.internal.code.BlockStatement;
 import io.github.sheikah45.fx2j.processor.internal.code.Declarator;
 import io.github.sheikah45.fx2j.processor.internal.code.Expression;
 import io.github.sheikah45.fx2j.processor.internal.code.Literal;
@@ -16,6 +15,7 @@ import io.github.sheikah45.fx2j.processor.internal.code.Parameter;
 import io.github.sheikah45.fx2j.processor.internal.code.Resource;
 import io.github.sheikah45.fx2j.processor.internal.code.Statement;
 import io.github.sheikah45.fx2j.processor.internal.code.StatementExpression;
+import io.github.sheikah45.fx2j.processor.internal.code.TypeValue;
 
 import java.util.List;
 
@@ -33,8 +33,8 @@ public class CodeBlockConverter {
             case TypeValue.Variable(String name, List<TypeValue> upperBounds) -> TypeVariableName.get(name,
                                                                                                       upperBounds.stream()
                                                                                                                  .map(CodeBlockConverter::convertToTypeName)
-                                                                                                               .toArray(
-                                                                                                                       TypeName[]::new));
+                                                                                                                 .toArray(
+                                                                                                                         TypeName[]::new));
             case TypeValue.Wildcard(List<TypeValue> lowerBounds, List<TypeValue> upperBounds) when lowerBounds.size() ==
                                                                                                    1 &&
                                                                                                    upperBounds.isEmpty() ->
@@ -120,8 +120,7 @@ public class CodeBlockConverter {
             case Expression.Lambda.MethodReference(Expression receiver, String methodName) ->
                     CodeBlock.of("$L::$L", convertExpressionToCodeBlock(receiver), methodName);
             case Expression.Lambda.Arrow.Typed(
-                    List<Parameter> parameters,
-                    Block.Simple(List<? extends Statement> statements)
+                    List<Parameter> parameters, BlockStatement.Block(List<? extends Statement> statements)
             ) -> {
                 CodeBlock paramBlock = parameters.stream()
                                                  .map(parameter -> CodeBlock.of("$T $L",
@@ -131,7 +130,7 @@ public class CodeBlockConverter {
                 yield convertToLambda(paramBlock, statements);
             }
             case Expression.Lambda.Arrow.Untyped(
-                    List<String> parameters, Block.Simple(List<? extends Statement> statements)
+                    List<String> parameters, BlockStatement.Block(List<? extends Statement> statements)
             ) -> {
                 CodeBlock paramBlock = parameters.stream()
                                                  .map(parameter -> CodeBlock.of("$L", parameter))
@@ -141,8 +140,7 @@ public class CodeBlockConverter {
             case Expression.ArrayAccess(Expression receiver, Expression accessor) ->
                     CodeBlock.of("$L[$L]", convertExpressionToCodeBlock(receiver),
                                  convertExpressionToCodeBlock(accessor));
-            case StatementExpression statementExpression ->
-                    convertStatementExpressionToCodeBlock(statementExpression);
+            case StatementExpression statementExpression -> convertStatementExpressionToCodeBlock(statementExpression);
         };
     }
 
@@ -153,11 +151,11 @@ public class CodeBlockConverter {
             CodeBlock bodyBlock = switch (body.getFirst()) {
                 case Statement.Return.Void() -> CodeBlock.of("{}");
                 case Statement.Return.Value(Expression value) -> convertExpressionToCodeBlock(value);
-                case Block value -> CodeBlock.builder()
-                                             .beginControlFlow("")
-                                             .add(convertStatementToUnterminatedCodeBlock(value))
-                                             .endControlFlow()
-                                             .build();
+                case BlockStatement value -> CodeBlock.builder()
+                                                      .beginControlFlow("")
+                                                      .add(convertStatementToUnterminatedCodeBlock(value))
+                                                      .endControlFlow()
+                                                      .build();
                 case Statement value -> convertStatementToUnterminatedCodeBlock(value);
             };
             return CodeBlock.of("($L) -> $L", paramBlock, bodyBlock);
@@ -173,7 +171,7 @@ public class CodeBlockConverter {
     public static CodeBlock convertStatementToCodeBlock(Statement codeValue) {
         CodeBlock codeBlock = convertStatementToUnterminatedCodeBlock(codeValue);
         return switch (codeValue) {
-            case Block ignored -> CodeBlock.builder().add(codeBlock).build();
+            case BlockStatement ignored -> CodeBlock.builder().add(codeBlock).build();
             case Statement.LineBreak ignored -> CodeBlock.of("\n");
             default -> CodeBlock.builder().add(codeBlock).add(";\n").build();
         };
@@ -203,10 +201,11 @@ public class CodeBlockConverter {
             case Statement.Throw(Expression exception) ->
                     CodeBlock.of("throw $L", convertExpressionToCodeBlock(exception));
             case Statement.LineBreak() -> CodeBlock.of("\n");
-            case Block.For.Loop(
-                    Expression initializer, Expression termination,
-                    List<? extends Expression> incrementors,
-                    Block.Simple(List<? extends Statement> statements)
+            case BlockStatement.For(
+                    BlockStatement.For.BasicDeclaration(
+                            Statement.Declaration initializer, Expression termination,
+                            List<? extends Expression> incrementors
+                    ), BlockStatement.Block(List<? extends Statement> statements)
             ) -> {
                 CodeBlock incrementorBlock = incrementors.stream()
                                                          .map(CodeBlockConverter::convertExpressionToCodeBlock)
@@ -216,31 +215,57 @@ public class CodeBlockConverter {
                                                 .collect(CodeBlock.joining(""));
 
                 yield CodeBlock.builder()
-                               .beginControlFlow("for ($L; $L; $L)", convertExpressionToCodeBlock(initializer),
+                               .beginControlFlow("for ($L; $L; $L)",
+                                                 convertStatementToUnterminatedCodeBlock(initializer),
                                                  convertExpressionToCodeBlock(termination), incrementorBlock)
                                .add(bodyBlock)
                                .endControlFlow()
                                .build();
             }
-            case Block.For.Each(
-                    Parameter(TypeValue.Declarable type, String identifier), Expression parameters,
-                    Block.Simple(List<? extends Statement> statements)
+            case BlockStatement.For(
+                    BlockStatement.For.BasicStatementExpression(
+                            List<? extends StatementExpression> initializers, Expression termination,
+                            List<? extends Expression> incrementors
+                    ), BlockStatement.Block(List<? extends Statement> statements)
+            ) -> {
+                CodeBlock incrementorBlock = incrementors.stream()
+                                                         .map(CodeBlockConverter::convertExpressionToCodeBlock)
+                                                         .collect(CodeBlock.joining(", "));
+                CodeBlock initializerBlock = initializers.stream()
+                                                         .map(CodeBlockConverter::convertStatementExpressionToCodeBlock)
+                                                         .collect(CodeBlock.joining(", "));
+                CodeBlock bodyBlock = statements.stream()
+                                                .map(CodeBlockConverter::convertStatementToCodeBlock)
+                                                .collect(CodeBlock.joining(""));
+
+                yield CodeBlock.builder()
+                               .beginControlFlow("for ($L; $L; $L)", initializerBlock,
+                                                 convertExpressionToCodeBlock(termination), incrementorBlock)
+                               .add(bodyBlock)
+                               .endControlFlow()
+                               .build();
+            }
+            case BlockStatement.For(
+                    BlockStatement.For.Enhanced(
+                            Parameter parameter, Expression parameters
+                    ), BlockStatement.Block(List<? extends Statement> statements)
             ) -> {
                 CodeBlock bodyBlock = statements.stream()
                                                 .map(CodeBlockConverter::convertStatementToCodeBlock)
                                                 .collect(CodeBlock.joining(""));
 
                 yield CodeBlock.builder()
-                               .beginControlFlow("for ($T $L : $L)", convertToTypeName(type), identifier,
+                               .beginControlFlow("for ($T $L : $L)", convertToTypeName(parameter.type()),
+                                                 parameter.identifier(),
                                                  convertExpressionToCodeBlock(parameters))
                                .add(bodyBlock)
                                .endControlFlow()
                                .build();
             }
-            case Block.Try(
-                    List<Resource> resources, Block.Simple(List<? extends Statement> statements),
-                    List<Block.Try.Catch> catchBlocks,
-                    Block.Simple(List<? extends Statement> finallyStatements)
+            case BlockStatement.Try(
+                    List<Resource> resources, BlockStatement.Block(List<? extends Statement> statements),
+                    List<BlockStatement.Try.Catch> catchBlocks,
+                    BlockStatement.Block(List<? extends Statement> finallyStatements)
             ) -> {
 
                 CodeBlock resourcesBlock = resources.stream().map(resource -> switch (resource) {
@@ -264,7 +289,7 @@ public class CodeBlockConverter {
 
                 builder.add(bodyBlock);
 
-                for (Block.Try.Catch catchBlock : catchBlocks) {
+                for (BlockStatement.Try.Catch catchBlock : catchBlocks) {
                     CodeBlock exceptionTypesBlock = catchBlock.exceptionTypes()
                                                               .stream()
                                                               .map(CodeBlockConverter::convertToTypeName)
@@ -299,6 +324,7 @@ public class CodeBlockConverter {
 
     private static CodeBlock convertStatementExpressionToCodeBlock(StatementExpression statementExpression) {
         return switch (statementExpression) {
+            case StatementExpression.Empty() -> CodeBlock.of("");
             case StatementExpression.Assignment(Expression.Assignable receiver, Expression value) ->
                     CodeBlock.of("$L = $L", convertExpressionToCodeBlock(receiver),
                                  convertExpressionToCodeBlock(value));

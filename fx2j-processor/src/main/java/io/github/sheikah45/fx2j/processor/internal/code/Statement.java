@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Objects;
 
 sealed public interface Statement
-        permits Block, Statement.Declaration, Statement.LineBreak, Statement.Throw, Statement.Break,
+        permits BlockStatement, Statement.Declaration, Statement.LineBreak, Statement.Throw, Statement.Break,
         Statement.Continue, Statement.Return, StatementExpression {
     sealed interface Return extends Statement {
         record Value(Expression value) implements Return {

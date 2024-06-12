@@ -1,6 +1,6 @@
 package io.github.sheikah45.fx2j.processor.internal.code.builder;
 
-import io.github.sheikah45.fx2j.processor.internal.code.Block;
+import io.github.sheikah45.fx2j.processor.internal.code.BlockStatement;
 import io.github.sheikah45.fx2j.processor.internal.code.TypeValue;
 import io.github.sheikah45.fx2j.processor.internal.code.TypeValues;
 import io.github.sheikah45.fx2j.processor.internal.code.CodeValues;
@@ -13,11 +13,11 @@ import java.util.function.Consumer;
 
 public final class TryBuilder {
 
-    private final List<Block.Try.Catch> catches = new ArrayList<>();
+    private final List<BlockStatement.Try.Catch> catches = new ArrayList<>();
 
     private List<Resource> resources = List.of();
-    private Block.Simple body = CodeValues.block();
-    private Block.Simple finallyBlock = CodeValues.block();
+    private BlockStatement.Block body = CodeValues.block();
+    private BlockStatement.Block finallyBlock = CodeValues.block();
 
     public TryBuilder() {}
 
@@ -49,8 +49,8 @@ public final class TryBuilder {
         return this;
     }
 
-    public Block.Try build() {
-        return new Block.Try(resources, body, catches, finallyBlock);
+    public BlockStatement.Try build() {
+        return new BlockStatement.Try(resources, body, catches, finallyBlock);
     }
 
     public static final class ResourcesBuilder {
@@ -83,7 +83,7 @@ public final class TryBuilder {
         private final List<TypeValue.Declarable> exceptionTypes = new ArrayList<>();
 
         private String identifier = "exception";
-        private Block.Simple body = CodeValues.block();
+        private BlockStatement.Block body = CodeValues.block();
 
         private CatchBuilder() {}
 
@@ -104,8 +104,8 @@ public final class TryBuilder {
             return this;
         }
 
-        private Block.Try.Catch build() {
-            return new Block.Try.Catch(identifier, exceptionTypes, body);
+        private BlockStatement.Try.Catch build() {
+            return new BlockStatement.Try.Catch(identifier, exceptionTypes, body);
         }
     }
 

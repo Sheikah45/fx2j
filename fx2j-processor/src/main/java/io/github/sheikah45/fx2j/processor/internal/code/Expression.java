@@ -4,8 +4,8 @@ import java.util.List;
 import java.util.Objects;
 
 sealed public interface Expression
-        permits Expression.Array, Expression.Assignable, Expression.Enum, Expression.Lambda, Literal,
-        StatementExpression, Expression.Type {
+        permits Expression.Array, Expression.Assignable, Expression.Enum, Expression.Lambda,
+        Expression.Type, Literal, StatementExpression {
     sealed interface Assignable extends Expression {}
     sealed interface Array extends Expression {
         record Declared(TypeValue.Declarable componentType, List<? extends Expression> values) implements
@@ -24,14 +24,14 @@ sealed public interface Expression
     }
     sealed interface Lambda extends Expression {
         sealed interface Arrow extends Lambda {
-            record Typed(List<Parameter> parameters, Block.Simple body) implements Arrow {
+            record Typed(List<Parameter> parameters, BlockStatement.Block body) implements Arrow {
                 public Typed {
                     Objects.requireNonNull(parameters, "parameters cannot be null");
                     Objects.requireNonNull(body, "body cannot be null");
                     parameters = List.copyOf(parameters);
                 }
             }
-            record Untyped(List<String> parameters, Block.Simple body) implements Arrow {
+            record Untyped(List<String> parameters, BlockStatement.Block body) implements Arrow {
                 public Untyped {
                     Objects.requireNonNull(parameters, "receiver cannot be null");
                     Objects.requireNonNull(body, "body cannot be null");

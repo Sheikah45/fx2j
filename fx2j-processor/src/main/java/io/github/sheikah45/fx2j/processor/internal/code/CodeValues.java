@@ -15,25 +15,30 @@ public final class CodeValues {
 
     private static final Statement.LineBreak LINE_BREAK = new Statement.LineBreak();
     private static final Literal.Null NULL = new Literal.Null();
-    private static final Block.Simple EMPTY_BLOCK = new Block.Simple(List.of());
+    private static final BlockStatement.Block EMPTY_BLOCK = new BlockStatement.Block(List.of());
     private static final Statement.Return.Void VOID_RETURN = new Statement.Return.Void();
+    private static final StatementExpression.Empty EMPTY_EXPRESSION = new StatementExpression.Empty();
 
     private CodeValues() {}
+
+    public static StatementExpression.Empty empty() {
+        return EMPTY_EXPRESSION;
+    }
 
     public static Statement.LineBreak lineBreak() {
         return LINE_BREAK;
     }
 
-    public static Block.Simple block(Statement... statements) {
+    public static BlockStatement.Block block(Statement... statements) {
         return block(List.of(statements));
     }
 
-    public static Block.Simple block(List<? extends Statement> statements) {
+    public static BlockStatement.Block block(List<? extends Statement> statements) {
         if (statements.isEmpty()) {
             return EMPTY_BLOCK;
         }
 
-        return new Block.Simple(statements);
+        return new BlockStatement.Block(statements);
     }
 
     public static Parameter parameter(Type type, String identifier) {
@@ -350,7 +355,7 @@ public final class CodeValues {
         return declaration(type, assignment(variable, initializer));
     }
 
-    public static Block.Try rethrow(Statement statement) {
+    public static BlockStatement.Try rethrow(Statement statement) {
         Statement.Throw throwsException = CodeValues.throwsException(RuntimeException.class,
                                                                      CodeValues.variable("exception"));
         return CodeValues.tryBuilder()
@@ -383,7 +388,7 @@ public final class CodeValues {
         return newInstance(declarable, args);
     }
 
-    public static Block.Try rethrow(Block.Simple block) {
+    public static BlockStatement.Try rethrow(BlockStatement.Block block) {
         String exceptionIdentifier = "exception";
         Statement.Throw throwsException = CodeValues.throwsException(RuntimeException.class,
                                                                      CodeValues.variable(exceptionIdentifier));

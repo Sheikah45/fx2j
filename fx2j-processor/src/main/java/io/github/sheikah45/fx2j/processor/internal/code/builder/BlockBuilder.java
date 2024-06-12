@@ -1,6 +1,6 @@
 package io.github.sheikah45.fx2j.processor.internal.code.builder;
 
-import io.github.sheikah45.fx2j.processor.internal.code.Block;
+import io.github.sheikah45.fx2j.processor.internal.code.BlockStatement;
 import io.github.sheikah45.fx2j.processor.internal.code.CodeValues;
 import io.github.sheikah45.fx2j.processor.internal.code.Statement;
 
@@ -18,12 +18,12 @@ public final class BlockBuilder {
         return this;
     }
 
-    public BlockBuilder block(Block.Simple block) {
+    public BlockBuilder block(BlockStatement.Block block) {
         statements.addAll(block.statements());
         return this;
     }
 
-    public Block.Simple build() {
+    public BlockStatement.Block build() {
         return CodeValues.block(statements);
     }
 }

@@ -1,6 +1,6 @@
 package io.github.sheikah45.fx2j.processor.internal.code.builder;
 
-import io.github.sheikah45.fx2j.processor.internal.code.Block;
+import io.github.sheikah45.fx2j.processor.internal.code.BlockStatement;
 import io.github.sheikah45.fx2j.processor.internal.code.TypeValue;
 import io.github.sheikah45.fx2j.processor.internal.code.CodeValues;
 import io.github.sheikah45.fx2j.processor.internal.code.Expression;
@@ -14,7 +14,7 @@ import java.util.function.Consumer;
 public final class LambdaBuilder {
 
     private LambdaParameterBuilder lambdaParameterBuilder;
-    private Block.Simple body = CodeValues.block();
+    private BlockStatement.Block body = CodeValues.block();
 
     public LambdaBuilder typed(Consumer<LambdaParameterBuilder.Typed> consumer) {
         LambdaParameterBuilder.Typed parameterBuilder = new LambdaParameterBuilder.Typed();
@@ -66,7 +66,7 @@ public final class LambdaBuilder {
             }
 
             private List<Parameter> build() {
-                return parameters;
+                return List.copyOf(parameters);
             }
         }
 

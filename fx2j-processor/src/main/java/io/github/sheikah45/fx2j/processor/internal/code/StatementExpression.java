@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Objects;
 
 sealed public interface StatementExpression extends Expression, Statement {
+    record Empty() implements StatementExpression {}
     record NewInstance(TypeValue.Declarable type, List<? extends Expression> args) implements StatementExpression {
         public NewInstance {
             Objects.requireNonNull(type, "type cannot be null");
