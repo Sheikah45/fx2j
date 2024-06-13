@@ -1,4 +1,4 @@
-package io.github.sheikah45.fx2j.parser.utils;
+package io.github.sheikah45.fx2j.parser.internal.utils;
 
 public class StringUtils {
 

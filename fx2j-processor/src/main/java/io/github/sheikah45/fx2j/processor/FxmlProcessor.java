@@ -12,7 +12,7 @@ import com.squareup.javapoet.WildcardTypeName;
 import io.github.sheikah45.fx2j.api.Fx2jBuilder;
 import io.github.sheikah45.fx2j.parser.FxmlComponents;
 import io.github.sheikah45.fx2j.parser.FxmlParser;
-import io.github.sheikah45.fx2j.parser.FxmlProcessingInstruction;
+import io.github.sheikah45.fx2j.parser.element.FxmlProcessingInstruction;
 import io.github.sheikah45.fx2j.parser.attribute.ControllerAttribute;
 import io.github.sheikah45.fx2j.processor.internal.ObjectNodeProcessor;
 import io.github.sheikah45.fx2j.processor.internal.model.ObjectNodeCode;

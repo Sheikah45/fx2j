@@ -1,9 +1,9 @@
 package io.github.sheikah45.fx2j.parser.property;
 
-import io.github.sheikah45.fx2j.parser.antlr.BindExpressionLexer;
-import io.github.sheikah45.fx2j.parser.antlr.BindExpressionParser;
-import io.github.sheikah45.fx2j.parser.antlr.BindExpressionVisitorImpl;
-import io.github.sheikah45.fx2j.parser.utils.StringUtils;
+import io.github.sheikah45.fx2j.parser.internal.antlr.BindExpressionLexer;
+import io.github.sheikah45.fx2j.parser.internal.antlr.BindExpressionParser;
+import io.github.sheikah45.fx2j.parser.internal.antlr.BindExpressionVisitorImpl;
+import io.github.sheikah45.fx2j.parser.internal.utils.StringUtils;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CodePointCharStream;
 import org.antlr.v4.runtime.CommonTokenStream;

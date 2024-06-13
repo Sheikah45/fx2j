@@ -1,5 +1,6 @@
 package io.github.sheikah45.fx2j.parser.utils;
 
+import io.github.sheikah45.fx2j.parser.internal.utils.StringUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;

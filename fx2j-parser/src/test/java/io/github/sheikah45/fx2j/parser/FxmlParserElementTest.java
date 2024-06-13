@@ -9,6 +9,7 @@ import io.github.sheikah45.fx2j.parser.element.DefineElement;
 import io.github.sheikah45.fx2j.parser.element.ElementContent;
 import io.github.sheikah45.fx2j.parser.element.FactoryElement;
 import io.github.sheikah45.fx2j.parser.element.FxmlElement;
+import io.github.sheikah45.fx2j.parser.element.FxmlProcessingInstruction;
 import io.github.sheikah45.fx2j.parser.element.IncludeElement;
 import io.github.sheikah45.fx2j.parser.element.InstanceElement;
 import io.github.sheikah45.fx2j.parser.element.InstancePropertyElement;

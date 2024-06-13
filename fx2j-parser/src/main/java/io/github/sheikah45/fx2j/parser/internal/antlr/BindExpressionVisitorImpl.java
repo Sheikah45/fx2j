@@ -1,4 +1,4 @@
-package io.github.sheikah45.fx2j.parser.antlr;
+package io.github.sheikah45.fx2j.parser.internal.antlr;
 
 import io.github.sheikah45.fx2j.parser.property.BindExpression;
 import org.antlr.v4.runtime.tree.AbstractParseTreeVisitor;

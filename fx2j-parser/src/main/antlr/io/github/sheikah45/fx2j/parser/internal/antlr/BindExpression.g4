@@ -1,6 +1,6 @@
 grammar BindExpression;
 @header {
-package io.github.sheikah45.fx2j.parser.antlr;
+package io.github.sheikah45.fx2j.parser.internal.antlr;
 }
 
 expression
