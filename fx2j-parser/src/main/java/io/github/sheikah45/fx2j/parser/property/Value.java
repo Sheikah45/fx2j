@@ -7,6 +7,7 @@ import java.util.Objects;
 
 sealed public interface Value
         permits BindExpression, Value.Empty, Value.Literal, Value.Location, Value.Reference, Value.Resource {
+
     record Empty() implements Value {}
     record Literal(String value) implements Value {}
     record Location(Path value) implements Value {

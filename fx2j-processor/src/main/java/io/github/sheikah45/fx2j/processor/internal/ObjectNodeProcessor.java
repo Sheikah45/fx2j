@@ -128,7 +128,7 @@ public class ObjectNodeProcessor {
         attributes.forEach(attribute -> {
             switch (attribute) {
                 case InstancePropertyAttribute instanceProperty ->
-                        instanceProperties.put(instanceProperty.propertyName(), instanceProperty);
+                        instanceProperties.put(instanceProperty.property(), instanceProperty);
                 case StaticPropertyAttribute staticProperty -> staticProperties.add(staticProperty);
                 case EventHandlerAttribute handler -> handlerProperties.add(handler);
                 case SpecialAttribute ignored -> {}
@@ -138,7 +138,7 @@ public class ObjectNodeProcessor {
         rootNode.content().elements().forEach(element -> {
             switch (element) {
                 case InstancePropertyElement instanceProperty ->
-                        instanceProperties.put(instanceProperty.propertyName(), instanceProperty);
+                        instanceProperties.put(instanceProperty.property(), instanceProperty);
                 case StaticPropertyElement staticProperty -> staticProperties.add(staticProperty);
                 case DefineElement(List<ClassInstanceElement> elements) -> definedChildren.addAll(elements);
                 case ClassInstanceElement classInstanceElement -> defaultPropertyElements.add(classInstanceElement);
@@ -159,7 +159,7 @@ public class ObjectNodeProcessor {
         } catch (ProcessorException processorException) {
             throw processorException;
         } catch (Exception exception) {
-            throw new ProcessorException(exception, rootNode.toString());
+            throw new ProcessorException(exception, rootNode.toFxml());
         }
     }
 

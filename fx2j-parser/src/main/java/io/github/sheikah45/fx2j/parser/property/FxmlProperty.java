@@ -16,7 +16,7 @@ public sealed interface FxmlProperty {
 
     sealed interface Instance extends FxmlProperty
             permits InstancePropertyAttribute, InstancePropertyElement {
-        String propertyName();
+        String property();
     }
 
     sealed interface EventHandler permits EventHandlerAttribute {

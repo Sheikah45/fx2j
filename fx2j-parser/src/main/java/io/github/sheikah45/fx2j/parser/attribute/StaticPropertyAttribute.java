@@ -13,7 +13,7 @@ public record StaticPropertyAttribute(String className, String property, Value v
             throw new IllegalArgumentException("className cannot be blank or null");
         }
         if (StringUtils.isNullOrBlank(property)) {
-            throw new IllegalArgumentException("propertyName cannot be blank or null");
+            throw new IllegalArgumentException("property cannot be blank or null");
         }
         Objects.requireNonNull(value, "value cannot be null");
     }

@@ -6,11 +6,11 @@ import io.github.sheikah45.fx2j.parser.internal.utils.StringUtils;
 
 import java.util.Objects;
 
-public record InstancePropertyAttribute(String propertyName, Value value) implements FxmlProperty.Instance,
+public record InstancePropertyAttribute(String property, Value value) implements FxmlProperty.Instance,
         AssignableAttribute {
     public InstancePropertyAttribute {
-        if (StringUtils.isNullOrBlank(propertyName)) {
-            throw new IllegalArgumentException("propertyName cannot be blank or null");
+        if (StringUtils.isNullOrBlank(property)) {
+            throw new IllegalArgumentException("property cannot be blank or null");
         }
         Objects.requireNonNull(value, "value cannot be null");
     }

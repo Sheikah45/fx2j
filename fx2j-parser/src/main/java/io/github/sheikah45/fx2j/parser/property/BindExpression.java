@@ -24,7 +24,7 @@ sealed public interface BindExpression extends Value {
         public PropertyRead {
             Objects.requireNonNull(bindExpression, "expression cannot be null");
             if (StringUtils.isNullOrBlank(property)) {
-                throw new IllegalArgumentException("propertyName cannot be blank or null");
+                throw new IllegalArgumentException("property cannot be blank or null");
             }
         }
     }
@@ -141,7 +141,7 @@ sealed public interface BindExpression extends Value {
     }
     record String(java.lang.String value) implements BindExpression {
         public String {
-            Objects.requireNonNull(value, "left cannot be null");
+            Objects.requireNonNull(value, "value cannot be null");
         }
     }
     record Whole(long value) implements BindExpression {}
