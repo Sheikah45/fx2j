@@ -15,7 +15,6 @@ website at https://openjfx.io/javadoc/21/javafx.fxml/javafx/fxml/doc-files/intro
 
 The following aspects are not yet implemented from the spec:
 
-* Binding expressions
 * Location resolution
 * Event handler expressions
 
