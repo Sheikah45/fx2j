@@ -1,3 +1,4 @@
+@SuppressWarnings("JavaModuleNaming")
 module io.github.sheikah45.fx2j.processor {
     requires java.xml;
     requires com.squareup.javapoet;
