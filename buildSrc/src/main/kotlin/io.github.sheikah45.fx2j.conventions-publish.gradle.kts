@@ -63,7 +63,7 @@ publishing {
                 licenses {
                     license {
                         name.set("The MIT License (MIT)")
-                        url.set("http://www.opensource.org/licenses/mit-license.php")
+                        url.set("https://www.opensource.org/licenses/mit-license.php")
                         distribution.set("repo")
                     }
                 }

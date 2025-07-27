@@ -333,9 +333,11 @@ public class ObjectNodeProcessor {
     }
 
     private void processControllerSetter(String identifier, Type valueClass) {
-        if (controllerClass != Object.class) {
-            processControllerSettersFromKnownClass(identifier, valueClass);
+        if (controllerClass == Object.class) {
+            return;
         }
+
+        processControllerSettersFromKnownClass(identifier, valueClass);
     }
 
     private Type[] extractTypeArguments() {
@@ -366,7 +368,7 @@ public class ObjectNodeProcessor {
                                                                                              valueClass))
                                               .map(field -> CodeValues.assignment(
                                                       CodeValues.fieldAccess(FxmlProcessor.CONTROLLER_NAME, field),
-                                                      CodeValues.variable(field.getName()))))
+                                                      CodeValues.variable(identifier))))
                       .ifPresent(initializers::add);
     }
 

@@ -18,15 +18,13 @@ public class Fx2jLoader {
 
     private static final System.Logger LOGGER = System.getLogger(Fx2jLoader.class.getCanonicalName());
 
-    private static final List<Fx2jBuilderFinder> BUILDER_FINDERS;
+    private static final List<Fx2jBuilderFinder> BUILDER_FINDERS = ServiceLoader.load(Fx2jBuilderFinder.class)
+                                                                                .stream()
+                                                                                .map(ServiceLoader.Provider::get)
+                                                                                .toList();
     private static final boolean FALL_BACK_TO_FXML;
 
     static {
-        BUILDER_FINDERS = ServiceLoader.load(Fx2jBuilderFinder.class)
-                                       .stream()
-                                       .map(ServiceLoader.Provider::get)
-                                       .toList();
-
         boolean fxmlLoaderExists;
         try {
             Class.forName("javafx.fxml.FXMLLoader", false, Fx2jLoader.class.getClassLoader());
